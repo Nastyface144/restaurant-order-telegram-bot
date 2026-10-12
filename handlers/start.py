@@ -96,7 +96,8 @@ async def on_leave_table(callback: CallbackQuery, bot: Bot) -> None:
 
 
 @router.callback_query(Nav.filter(F.to == "contacts"))
-async def on_contacts(callback: CallbackQuery, bot: Bot) -> None:
+async def on_contacts(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    await state.clear()
     text = (
         f"📍 <b>{esc(config.VENUE_NAME)}</b>\n\n"
         f"🏠 {esc(config.VENUE_ADDRESS)}\n"

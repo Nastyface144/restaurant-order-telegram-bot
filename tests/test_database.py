@@ -8,11 +8,11 @@ from utils.timeutil import now_local
 def to_order_items(lines):
     return [
         OrderItem(
-            item_id=l.item.id, title=l.item.title, size_code=l.size_code,
-            size_title=l.size.title if l.size else "", addon_codes=l.addon_codes,
-            addons_title=", ".join(a.title for a in l.addons), unit_price=l.unit_price, qty=l.qty,
+            item_id=line.item.id, title=line.item.title, size_code=line.size_code,
+            size_title=line.size.title if line.size else "", addon_codes=line.addon_codes,
+            addons_title=", ".join(a.title for a in line.addons), unit_price=line.unit_price, qty=line.qty,
         )
-        for l in lines
+        for line in lines
     ]
 
 
@@ -47,13 +47,13 @@ async def test_cart_merges_same_lines_and_changes_qty(database):
     await cart.add_to_cart(1, pizza.id, "30", ["bacon", "cheese"], qty=2)
     await cart.add_to_cart(1, pizza.id, "25", [])
     lines = await cart.get_cart(1)
-    assert [(l.size_code, l.qty) for l in lines] == [("30", 3), ("25", 1)]
+    assert [(line.size_code, line.qty) for line in lines] == [("30", 3), ("25", 1)]
     assert await cart.count_cart_items(1) == 4
 
     await cart.change_qty(1, lines[0].id, -1)
     await cart.change_qty(1, lines[1].id, -1)  # 1 → 0: позиция удаляется
     lines = await cart.get_cart(1)
-    assert [(l.size_code, l.qty) for l in lines] == [("30", 2)]
+    assert [(line.size_code, line.qty) for line in lines] == [("30", 2)]
 
     await cart.change_qty(1, lines[0].id, +1000)
     assert (await cart.get_cart(1))[0].qty == cart.MAX_QTY
@@ -133,4 +133,5 @@ async def test_users(database):
     await users.save_contact_details(1, phone="+7999")
     await users.save_contact_details(1, address="Садовая, 1", zone_id=2)
     user = await users.get_user(1)
-    assert (user.full_name, user.phone, user.last_address, user.last_zone_id) == ("Иван Петров", "+7999", "Садовая, 1", 2)
+    details = (user.full_name, user.phone, user.last_address, user.last_zone_id)
+    assert details == ("Иван Петров", "+7999", "Садовая, 1", 2)

@@ -139,7 +139,6 @@ async def test_pickup_specific_time(harness, always_open):
     await open_checkout(harness)
     await harness.click(USER, "Самовывоз")
     await harness.click(USER, "К конкретному времени")
-    screen = harness.screen(USER)
     slot_buttons = [b for b in harness.buttons(USER) if ":" in b and not b.startswith("📅")]
     assert slot_buttons
     await harness.click(USER, "Назад")  # к выбору «через N минут / ко времени»
@@ -226,8 +225,6 @@ async def test_sticker_during_checkout_keeps_flow(harness, always_open):
 
 
 async def test_staff_chat_failure_does_not_break_order(harness, always_open, monkeypatch):
-    from aiogram.exceptions import TelegramForbiddenError
-
     monkeypatch.setattr(config, "ADMIN_IDS", (777,))
     harness.session.blocked_chats.add(STAFF)
     await add_pizza(qty=1)
@@ -237,3 +234,16 @@ async def test_staff_chat_failure_does_not_break_order(harness, always_open, mon
     assert "оформлен" in harness.screen_text(USER)
     alerts = [m for m in harness.session.calls(SendMessage) if m.chat_id == 777]
     assert alerts and "не удалось отправить" in alerts[0].text
+
+
+async def test_leaving_checkout_via_menu_resets_input(harness, always_open):
+    await add_pizza()
+    await open_checkout(harness)
+    await harness.click(USER, "Доставка")
+    await harness.click(USER, "Зона 1")          # бот ждёт адрес
+    from keyboards.callbacks import Nav
+
+    # кнопка «Меню» со старого сообщения (без /start)
+    await harness.click_data(USER, Nav(to="menu").pack(), harness.screen(USER))
+    await harness.send(USER, "просто текст")     # это уже не адрес
+    assert "Я понимаю кнопки" in harness.screen_text(USER)

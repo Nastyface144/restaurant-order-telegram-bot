@@ -28,7 +28,8 @@ def cart(lines: list[CartLine], total: int) -> InlineKeyboardMarkup:
                 callback_data=CartCb(a="del", line=line.id).pack(),
             ))
     if total > 0:
-        kb.row(InlineKeyboardButton(text=f"✅ Оформить заказ · {money(total)}", callback_data=CartCb(a="checkout").pack()))
+        kb.row(InlineKeyboardButton(text=f"✅ Оформить заказ · {money(total)}",
+                                    callback_data=CartCb(a="checkout").pack()))
     kb.row(InlineKeyboardButton(text="🧹 Очистить корзину", callback_data=CartCb(a="clear").pack()))
     kb.row(nav_button("📖 Меню", "menu"), home_button())
     return kb.as_markup()

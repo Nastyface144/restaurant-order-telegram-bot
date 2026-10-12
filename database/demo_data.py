@@ -30,7 +30,7 @@ PIZZA_ADDONS = [
 
 
 def _pizza_sizes(p25: int, p30: int, p35: int) -> list[dict]:
-    return [dict(size, price=price) for size, price in zip(PIZZA_SIZES, (p25, p30, p35))]
+    return [dict(size, price=price) for size, price in zip(PIZZA_SIZES, (p25, p30, p35), strict=True)]
 
 
 CATEGORIES = [

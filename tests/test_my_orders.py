@@ -30,7 +30,7 @@ async def test_history_details_and_repeat(harness, always_open):
     await harness.click(USER, "Повторить заказ")
     assert "Добавили в корзину 2 позиции из заказа №1" in harness.screen_text(USER)
     lines = await cart.get_cart(USER)
-    assert [(l.item.title, l.size_code, l.qty) for l in lines] == [("Маргарита", "30", 2)]
+    assert [(line.item.title, line.size_code, line.qty) for line in lines] == [("Маргарита", "30", 2)]
     assert len(harness.session.chat_messages(USER)) == 1
 
 

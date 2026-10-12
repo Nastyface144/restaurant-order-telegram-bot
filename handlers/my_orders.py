@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from aiogram import Bot, F, Router
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from database import orders as orders_db
@@ -22,7 +23,8 @@ HISTORY_LIMIT = 10
 
 
 @router.callback_query(Nav.filter(F.to == "orders"))
-async def on_orders(callback: CallbackQuery, bot: Bot) -> None:
+async def on_orders(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    await state.clear()
     orders = await orders_db.get_user_orders(callback.from_user.id, limit=HISTORY_LIMIT)
     if orders:
         text = "📦 <b>Мои заказы</b>\n\nПоследние заказы — нажмите, чтобы открыть или повторить 👇"

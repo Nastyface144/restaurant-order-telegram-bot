@@ -67,8 +67,13 @@ async def on_successful_payment(message: Message, bot: Bot) -> None:
 @router.callback_query(PayCb.filter(F.a == "cancel"))
 async def on_cancel_invoice(callback: CallbackQuery, callback_data: PayCb, bot: Bot) -> None:
     order = await orders_db.get_order(callback_data.order)
-    if order and order.user_id == callback.from_user.id:
-        await orders_db.update_status(order.id, OrderStatus.CANCELLED, expected=[OrderStatus.PENDING_PAYMENT],
-                                      changed_by="клиент")
+    if order is None or order.user_id != callback.from_user.id:
+        await callback.answer("Заказ не найден", show_alert=True)
+        return
+    if order.is_paid:
+        await callback.answer(f"Заказ №{order.id} уже оплачен 👌", show_alert=True)
+        return
+    await orders_db.update_status(order.id, OrderStatus.CANCELLED, expected=[OrderStatus.PENDING_PAYMENT],
+                                  changed_by="клиент")
     await show_cart(bot, callback, notice="Оплата отменена — корзина на месте 👌")
     await callback.answer()

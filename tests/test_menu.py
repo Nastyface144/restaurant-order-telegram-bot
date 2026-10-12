@@ -39,7 +39,8 @@ async def test_item_card_options_and_add(harness, always_open):
 
     await harness.click(USER, "Добавить · 2 000")
     lines = await cart.get_cart(USER)
-    assert [(l.item.title, l.size_code, l.addon_codes, l.qty) for l in lines] == [("Пепперони", "35", ("bacon",), 2)]
+    summary = [(line.item.title, line.size_code, line.addon_codes, line.qty) for line in lines]
+    assert summary == [("Пепперони", "35", ("bacon",), 2)]
     # после добавления количество сброшено, счётчик корзины обновился
     assert "1 шт." in harness.buttons(USER)
     assert "🛒 Корзина · 2" in harness.buttons(USER)

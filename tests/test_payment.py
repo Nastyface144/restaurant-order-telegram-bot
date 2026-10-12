@@ -119,3 +119,14 @@ async def test_rejecting_paid_order_mentions_refund(harness, always_open):
     client_texts = [m.text for m in harness.session.calls(SendMessage) if m.chat_id == USER]
     assert "Деньги вернём на карту" in client_texts[-1]
     assert "оформите возврат" in harness.session.last_message(STAFF)["text"]
+
+
+async def test_cancel_button_on_paid_invoice(harness, always_open):
+    from aiogram.methods import AnswerCallbackQuery
+
+    await checkout_online(harness)
+    invoice = harness.screen(USER).copy()
+    await pay(harness)
+    await harness.click(USER, "Отменить", message=invoice)
+    assert "уже оплачен" in harness.session.calls(AnswerCallbackQuery)[-1].text
+    assert (await orders.get_order(1)).status == OrderStatus.NEW

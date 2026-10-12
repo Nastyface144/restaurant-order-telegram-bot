@@ -7,6 +7,7 @@ from pathlib import Path
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile, Message
 
 import config
@@ -54,7 +55,8 @@ async def show_categories(bot: Bot, callback: CallbackQuery) -> None:
 
 
 @router.callback_query(Nav.filter(F.to == "menu"))
-async def on_menu(callback: CallbackQuery, bot: Bot) -> None:
+async def on_menu(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    await state.clear()  # ушли из оформления/брони через другую кнопку — ввод больше не ждём
     await show_categories(bot, callback)
     await callback.answer()
 

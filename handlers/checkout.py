@@ -179,7 +179,7 @@ async def render(
         if show_slots or not has_choice:
             slots = hours.time_slots(lead_minutes=co.lead_minutes(draft.method), now=now)
             if not slots:
-                body = "😔 К сожалению, в ближайшие дни свободного времени нет. Позвоните нам: " + esc(config.VENUE_PHONE)
+                body = f"😔 В ближайшие дни свободного времени нет. Позвоните нам: {esc(config.VENUE_PHONE)}"
             elif not has_choice:
                 opening = hours.next_opening(now)
                 closed = f"Сейчас мы не принимаем заказы, откроемся {human_datetime(opening)}. " if opening else ""
@@ -246,11 +246,11 @@ async def on_checkout(callback: CallbackQuery, state: FSMContext, bot: Bot) -> N
         return
 
     lines = await cart.get_cart(user_id)
-    unavailable = [l for l in lines if not l.item.is_available]
+    unavailable = [line for line in lines if not line.item.is_available]
     if unavailable:
         for line in unavailable:
             await cart.remove_line(user_id, line.id)
-        names = ", ".join(l.item.title for l in unavailable)
+        names = ", ".join(line.item.title for line in unavailable)
         await show_cart(bot, callback, notice=f"⚠️ Закончилось: {esc(names)}. Мы убрали это из корзины.")
         await callback.answer()
         return
@@ -506,12 +506,12 @@ async def submit(callback: CallbackQuery, state: FSMContext, bot: Bot, draft: Dr
 
     # Пока клиент оформлял, что-то могло измениться: стоп-лист, время, стол
     lines = await cart.get_cart(user_id)
-    unavailable = [l for l in lines if not l.item.is_available]
+    unavailable = [line for line in lines if not line.item.is_available]
     if unavailable or not lines:
         for line in unavailable:
             await cart.remove_line(user_id, line.id)
         await state.clear()
-        names = ", ".join(l.item.title for l in unavailable)
+        names = ", ".join(line.item.title for line in unavailable)
         notice = f"⚠️ Пока вы оформляли, закончилось: {esc(names)}. Проверьте корзину." if names else None
         await show_cart(bot, callback, notice=notice)
         await callback.answer()

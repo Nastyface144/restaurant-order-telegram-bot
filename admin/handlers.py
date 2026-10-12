@@ -53,7 +53,8 @@ class AdminForm(StatesGroup):
 
 async def show_dashboard(bot: Bot, chat_id: int, message: Message | None = None, force_new: bool = False) -> None:
     data = await stats_mod.collect(now_local().date())
-    await screen.show(bot, chat_id, stats_mod.format_summary(data, "⚙️ <b>Админ-панель</b>"), kb.dashboard(), message=message, force_new=force_new)
+    text = stats_mod.format_summary(data, "⚙️ <b>Админ-панель</b>")
+    await screen.show(bot, chat_id, text, kb.dashboard(), message=message, force_new=force_new)
 
 
 @router.message(Command("admin"))
@@ -172,7 +173,8 @@ async def on_broadcast(callback: CallbackQuery, state: FSMContext, bot: Bot) -> 
 async def on_broadcast_message(message: Message, state: FSMContext, bot: Bot) -> None:
     if not (message.text or message.photo):
         await screen.show(bot, message.chat.id,
-                          "📣 <b>Рассылка</b>\n\n⚠️ Можно отправить только текст или фото с подписью. Попробуйте ещё раз.",
+                          "📣 <b>Рассылка</b>\n\n⚠️ Можно отправить только текст или фото с подписью. "
+                          "Попробуйте ещё раз.",
                           kb.broadcast_wait(), force_new=True)
         return
     await state.update_data(bc_message=message.message_id)

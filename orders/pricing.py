@@ -7,12 +7,12 @@ from database.models import CartLine, OrderItem
 
 
 def available_lines(lines: list[CartLine]) -> list[CartLine]:
-    return [l for l in lines if l.item.is_available]
+    return [line for line in lines if line.item.is_available]
 
 
 def subtotal(lines: list[CartLine]) -> int:
     """Сумма за товары (позиции из стоп-листа не учитываются)."""
-    return sum(l.total for l in available_lines(lines))
+    return sum(line.total for line in available_lines(lines))
 
 
 def delivery_fee(zone: DeliveryZone, items_total: int) -> int:
@@ -40,14 +40,14 @@ def to_order_items(lines: list[CartLine]) -> list[OrderItem]:
     """Снимок позиций корзины для заказа: названия и цены фиксируются на момент оформления."""
     return [
         OrderItem(
-            item_id=l.item.id,
-            title=l.item.title,
-            size_code=l.size_code,
-            size_title=l.size.title if l.size and len(l.item.sizes) > 1 else "",
-            addon_codes=tuple(a.code for a in l.addons),
-            addons_title=", ".join(a.title for a in l.addons),
-            unit_price=l.unit_price,
-            qty=l.qty,
+            item_id=line.item.id,
+            title=line.item.title,
+            size_code=line.size_code,
+            size_title=line.size.title if line.size and len(line.item.sizes) > 1 else "",
+            addon_codes=tuple(a.code for a in line.addons),
+            addons_title=", ".join(a.title for a in line.addons),
+            unit_price=line.unit_price,
+            qty=line.qty,
         )
-        for l in available_lines(lines)
+        for line in available_lines(lines)
     ]

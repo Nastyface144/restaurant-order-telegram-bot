@@ -52,12 +52,12 @@ async def test_change_qty_delete_clear(harness, always_open):
     await harness.send(USER, "/start")
     await harness.click(USER, "Корзина")
     await harness.click(USER, "➖", exact=True)       # пепперони 2 → 1
-    assert [l.qty for l in await cart.get_cart(USER)] == [1, 1]
+    assert [line.qty for line in await cart.get_cart(USER)] == [1, 1]
     await harness.click(USER, "➕", exact=True)
     await harness.click(USER, "➕", exact=True)
-    assert [l.qty for l in await cart.get_cart(USER)] == [3, 1]
+    assert [line.qty for line in await cart.get_cart(USER)] == [3, 1]
     await harness.click(USER, "🗑", exact=True)       # удалить первую позицию
-    assert [l.item.title for l in await cart.get_cart(USER)] == ["Морс клюквенный"]
+    assert [line.item.title for line in await cart.get_cart(USER)] == ["Морс клюквенный"]
     await harness.click(USER, "Очистить корзину")
     await harness.click(USER, "Нет, назад")
     assert len(await cart.get_cart(USER)) == 1

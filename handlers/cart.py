@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from aiogram import Bot, F, Router
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 import config
@@ -73,7 +74,8 @@ async def show_cart(bot: Bot, callback: CallbackQuery, notice: str | None = None
 
 
 @router.callback_query(Nav.filter(F.to == "cart"))
-async def on_cart(callback: CallbackQuery, bot: Bot) -> None:
+async def on_cart(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    await state.clear()
     await show_cart(bot, callback)
     await callback.answer()
 
@@ -95,7 +97,8 @@ async def on_delete_line(callback: CallbackQuery, callback_data: CartCb, bot: Bo
 
 @router.callback_query(CartCb.filter(F.a == "clear"))
 async def on_clear(callback: CallbackQuery, bot: Bot) -> None:
-    await screen.show(bot, callback.message.chat.id, "🧹 Очистить корзину?", kb.confirm_clear(), message=callback.message)
+    await screen.show(bot, callback.message.chat.id, "🧹 Очистить корзину?", kb.confirm_clear(),
+                      message=callback.message)
     await callback.answer()
 
 

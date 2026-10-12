@@ -61,7 +61,8 @@ def invoice_keyboard(order: Order) -> InlineKeyboardMarkup:
 async def send_invoice(bot: Bot, chat_id: int, order: Order) -> Message:
     description = ", ".join(i.title for i in order.items)
     if is_test_mode():
-        description += ". Тестовый режим: оплатите тестовой картой 5555 5555 5555 4477, срок — любой будущий, CVC — любой."
+        description += (". Тестовый режим: оплатите тестовой картой 5555 5555 5555 4477, "
+                        "срок — любой будущий, CVC — любой.")
     return await bot.send_invoice(
         chat_id=chat_id,
         title=truncate(f"Заказ №{order.id} · {config.VENUE_NAME}", 32),
