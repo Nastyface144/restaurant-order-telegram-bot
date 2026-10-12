@@ -118,6 +118,10 @@ class MenuItem:
         wanted = set(codes)
         return [a for a in self.addons if a.code in wanted]
 
+    def addon_codes_from_mask(self, mask: int) -> list[str]:
+        """Битовая маска (из кнопки) → коды добавок."""
+        return [a.code for i, a in enumerate(self.addons) if mask >> i & 1]
+
     @property
     def min_price(self) -> int:
         return min(s.price for s in self.sizes) if self.sizes else self.price

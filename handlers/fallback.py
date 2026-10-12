@@ -10,6 +10,12 @@ from .start import show_main_menu
 router = Router(name="fallback")
 
 
+@router.callback_query(F.data == "noop")
+async def noop(callback: CallbackQuery) -> None:
+    # Информационные кнопки (номер страницы и т. п.)
+    await callback.answer()
+
+
 @router.callback_query()
 async def unknown_callback(callback: CallbackQuery) -> None:
     # Например, кнопка из старого сообщения после перезапуска бота

@@ -120,3 +120,26 @@ async def delete_user_input(message: Message) -> None:
         await message.delete()
     except TelegramAPIError:
         pass
+
+
+async def edit_caption(
+    bot: Bot, message: Message, text: str, keyboard: InlineKeyboardMarkup | None = None
+) -> bool:
+    """Меняет только подпись и кнопки у фото — без повторной загрузки картинки.
+
+    Возвращает False, если отредактировать не вышло (тогда нужен полноценный show()).
+    """
+    if not isinstance(message, Message) or not message.photo:
+        return False
+    try:
+        result = await bot.edit_message_caption(
+            chat_id=message.chat.id, message_id=message.message_id, caption=text, reply_markup=keyboard
+        )
+    except TelegramBadRequest as exc:
+        if _is_not_modified(exc):
+            return True
+        logger.debug("Не удалось изменить подпись: %s", exc)
+        return False
+    if isinstance(result, Message):
+        remember(result)
+    return True

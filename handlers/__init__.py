@@ -2,7 +2,7 @@
 
 from aiogram import Router
 
-from . import errors, fallback, start
+from . import errors, fallback, menu, start
 from .middlewares import UserMiddleware
 
 
@@ -15,6 +15,7 @@ def setup_routers() -> Router:
     root.include_routers(
         errors.router,
         start.router,
+        menu.router,
         fallback.router,
     )
     return root

@@ -19,6 +19,7 @@ from aiogram.methods import (
     AnswerPreCheckoutQuery,
     CopyMessage,
     DeleteMessage,
+    EditMessageCaption,
     EditMessageMedia,
     EditMessageReplyMarkup,
     EditMessageText,
@@ -125,6 +126,14 @@ class FakeSession(BaseSession):
             data = self._store(method.chat_id, method.message_id, caption=method.media.caption,
                                photo=self._photo(method.media.media), reply_markup=self._markup(method.reply_markup))
             return Message.model_validate(data, context={"bot": bot})
+        if isinstance(method, EditMessageCaption):
+            old = self.messages.get((method.chat_id, method.message_id))
+            if old is None or "photo" not in old:
+                from aiogram.exceptions import TelegramBadRequest
+                raise TelegramBadRequest(method=method, message="Bad Request: there is no caption to edit")
+            old["caption"] = method.caption
+            old["reply_markup"] = self._markup(method.reply_markup)
+            return Message.model_validate(old, context={"bot": bot})
         if isinstance(method, EditMessageReplyMarkup):
             old = self.messages.get((method.chat_id, method.message_id))
             if old is None:
