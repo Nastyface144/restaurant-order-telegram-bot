@@ -101,11 +101,15 @@ async def get_order(order_id: int) -> Order | None:
     return (await _attach_items([row]))[0]
 
 
+# Заказы, которые так и не дошли до заведения (не оплачены онлайн), в истории и статистике не показываем
+HIDDEN_STATUSES = (str(OrderStatus.PENDING_PAYMENT), str(OrderStatus.CANCELLED))
+
+
 async def get_user_orders(user_id: int, limit: int = 10) -> list[Order]:
-    """Последние заказы клиента (без неоплаченных черновиков)."""
+    """Последние заказы клиента."""
     rows = await db.fetchall(
-        "SELECT * FROM orders WHERE user_id = ? AND status != ? ORDER BY id DESC LIMIT ?",
-        (user_id, str(OrderStatus.PENDING_PAYMENT), limit),
+        "SELECT * FROM orders WHERE user_id = ? AND status NOT IN (?, ?) ORDER BY id DESC LIMIT ?",
+        (user_id, *HIDDEN_STATUSES, limit),
     )
     return await _attach_items(rows)
 
@@ -163,11 +167,11 @@ async def set_staff_message(order_id: int, message_id: int) -> None:
 
 
 async def get_orders_for_day(day: date) -> list[Order]:
-    """Все заказы за локальные сутки, кроме неоплаченных черновиков."""
+    """Все заказы за локальные сутки, дошедшие до заведения."""
     start, end = local_day_bounds_db(day)
     rows = await db.fetchall(
-        "SELECT * FROM orders WHERE created_at >= ? AND created_at < ? AND status != ? ORDER BY id",
-        (start, end, str(OrderStatus.PENDING_PAYMENT)),
+        "SELECT * FROM orders WHERE created_at >= ? AND created_at < ? AND status NOT IN (?, ?) ORDER BY id",
+        (start, end, *HIDDEN_STATUSES),
     )
     return await _attach_items(rows)
 

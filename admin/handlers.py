@@ -14,7 +14,6 @@ from aiogram.types import CallbackQuery, Message, TelegramObject
 
 import config
 from database import menu, users
-from database.models import OrderStatus
 from keyboards import admin as kb
 from keyboards.callbacks import AdminCb
 from orders.booking import STATUS_LABELS as BOOKING_LABELS
@@ -23,7 +22,7 @@ from orders.checkout import METHOD_TITLES
 from orders.statuses import status_label
 from utils import screen
 from utils.format import esc, money, plural
-from utils.timeutil import human_date, now_local
+from utils.timeutil import now_local
 
 from . import stats as stats_mod
 from .broadcast import BroadcastResult, broadcast
@@ -52,32 +51,9 @@ class AdminForm(StatesGroup):
 # Сводка
 # ---------------------------------------------------------------------------
 
-def dashboard_text(s: stats_mod.DayStats) -> str:
-    by_status = s.by_status
-    lines = [f"⚙️ <b>Админ-панель</b> · {human_date(s.day)}, {s.day:%d.%m}", ""]
-    lines.append(f"🧾 Заказов: <b>{len(s.orders)}</b>")
-    if s.orders:
-        lines.append(
-            f"    в работе {len(s.in_progress)} · выполнено {len(s.completed)} · "
-            f"отклонено {by_status[OrderStatus.REJECTED] + by_status[OrderStatus.CANCELLED]}"
-        )
-    lines.append(f"💰 Выручка: <b>{money(s.revenue)}</b>")
-    if s.completed:
-        lines.append(f"    средний чек {money(s.average_check)}")
-    if s.expected_revenue:
-        lines.append(f"    ещё в работе на {money(s.expected_revenue)}")
-    lines.append(f"📅 Броней: <b>{len(s.bookings)}</b>"
-                 + (f" · ждут подтверждения {s.pending_bookings}" if s.pending_bookings else ""))
-    if s.guests_expected:
-        lines.append(f"    ожидаем {guests_text(s.guests_expected)}")
-    lines.append(f"🚫 В стоп-листе: {s.stopped_items} {plural(s.stopped_items, 'блюдо', 'блюда', 'блюд')}")
-    lines.append(f"👥 Клиентов в боте: {s.users_active}")
-    return "\n".join(lines)
-
-
 async def show_dashboard(bot: Bot, chat_id: int, message: Message | None = None, force_new: bool = False) -> None:
     data = await stats_mod.collect(now_local().date())
-    await screen.show(bot, chat_id, dashboard_text(data), kb.dashboard(), message=message, force_new=force_new)
+    await screen.show(bot, chat_id, stats_mod.format_summary(data, "⚙️ <b>Админ-панель</b>"), kb.dashboard(), message=message, force_new=force_new)
 
 
 @router.message(Command("admin"))

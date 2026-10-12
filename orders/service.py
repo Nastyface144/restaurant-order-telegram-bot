@@ -10,7 +10,7 @@ from database import orders as orders_db
 from database import users
 from database.models import CartLine, Order, OrderMethod, OrderStatus, PaymentMethod
 
-from . import pricing, staff
+from . import pricing, scheduler, staff
 from .checkout import Draft, parse_time
 
 logger = logging.getLogger(__name__)
@@ -55,3 +55,4 @@ async def place_order(bot: Bot, *, user_id: int, customer_name: str, draft: Draf
 async def on_order_confirmed(bot: Bot, order: Order) -> None:
     """Заказ подтверждён (оформлен или оплачен) — передаём персоналу."""
     await staff.send_new_order(bot, order)
+    scheduler.schedule_order_reminder(order)

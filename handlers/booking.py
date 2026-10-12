@@ -17,6 +17,7 @@ from database.models import Booking, BookingStatus
 from keyboards import booking as kb
 from keyboards.callbacks import BookAdminCb, BookCb, Nav
 from orders import booking as bk
+from orders import scheduler
 from orders.booking import BookingDraft
 from utils import screen
 from utils.format import esc, normalize_phone
@@ -335,4 +336,6 @@ async def on_admin_decision(callback: CallbackQuery, callback_data: BookAdminCb,
         await users.mark_blocked(booking.user_id)
     except TelegramAPIError:
         logger.exception("Не удалось уведомить гостя о брони №%s", booking.id)
+    if new_status == BookingStatus.CONFIRMED:
+        scheduler.schedule_booking_reminder(booking)
     await callback.answer("Гость уведомлён")
