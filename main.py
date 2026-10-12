@@ -12,6 +12,8 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
 import config
+from database import db
+from database.demo_data import seed_if_empty
 from handlers import setup_routers
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,9 @@ async def main() -> None:
     for warning in config.validate():
         logger.warning(warning)
 
+    await db.connect(config.DB_PATH)
+    await seed_if_empty()
+
     bot = Bot(
         token=config.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML, link_preview_is_disabled=True),
@@ -45,6 +50,7 @@ async def main() -> None:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
         await bot.session.close()
+        await db.close()
         logger.info("Бот остановлен")
 
 

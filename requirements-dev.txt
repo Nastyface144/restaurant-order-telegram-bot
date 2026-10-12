@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pillow>=11  # только для tools/generate_menu_images.py
