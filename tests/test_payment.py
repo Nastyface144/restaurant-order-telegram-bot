@@ -107,3 +107,15 @@ async def test_payment_arrives_during_new_checkout(harness, always_open):
     await harness.click(USER, "Оформить заказ")  # клиент в состоянии оформления
     await pay(harness)
     assert (await orders.get_order(1)).is_paid
+
+
+async def test_rejecting_paid_order_mentions_refund(harness, always_open):
+    from aiogram.methods import SendMessage
+
+    await checkout_online(harness)
+    await pay(harness)
+    await harness.click(STAFF, "Отклонить", user_id=9001)
+    await harness.click(STAFF, config.REJECT_REASONS[0], user_id=9001)
+    client_texts = [m.text for m in harness.session.calls(SendMessage) if m.chat_id == USER]
+    assert "Деньги вернём на карту" in client_texts[-1]
+    assert "оформите возврат" in harness.session.last_message(STAFF)["text"]

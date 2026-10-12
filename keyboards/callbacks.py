@@ -41,3 +41,11 @@ class CheckoutCb(CallbackData, prefix="co"):
 class PayCb(CallbackData, prefix="pay"):
     a: str  # cancel
     order: int
+
+
+class StaffCb(CallbackData, prefix="st"):
+    """Кнопки на карточке заказа в рабочем чате."""
+
+    a: str        # go — сменить статус на v | rej — показать причины | rr — отклонить с причиной v | back
+    order: int
+    v: str = ""

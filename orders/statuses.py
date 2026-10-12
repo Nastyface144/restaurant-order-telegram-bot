@@ -22,6 +22,8 @@ ACTIVE_STATUSES = frozenset({
     OrderStatus.NEW, OrderStatus.ACCEPTED, OrderStatus.COOKING, OrderStatus.READY, OrderStatus.ON_THE_WAY,
 })
 FINAL_STATUSES = frozenset({OrderStatus.COMPLETED, OrderStatus.REJECTED, OrderStatus.CANCELLED})
+# Отклонить можно, пока заказ не отдан курьеру / не выдан
+REJECTABLE_STATUSES = frozenset({OrderStatus.NEW, OrderStatus.ACCEPTED, OrderStatus.COOKING})
 
 
 def status_label(status: OrderStatus, method: OrderMethod | None = None) -> str:
