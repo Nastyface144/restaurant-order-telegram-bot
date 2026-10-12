@@ -49,3 +49,8 @@ class StaffCb(CallbackData, prefix="st"):
     a: str        # go — сменить статус на v | rej — показать причины | rr — отклонить с причиной v | back
     order: int
     v: str = ""
+
+
+class OrdersCb(CallbackData, prefix="ord"):
+    a: str        # view | repeat
+    id: int

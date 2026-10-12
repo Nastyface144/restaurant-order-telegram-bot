@@ -11,6 +11,7 @@ from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError
 from database import orders as orders_db
 from database import users
 from database.models import Order, OrderStatus, PaymentMethod
+from keyboards.orders import open_order
 
 from . import staff
 from .statuses import REJECTABLE_STATUSES, client_notification, previous_statuses
@@ -32,7 +33,7 @@ async def notify_client(bot: Bot, order: Order) -> bool:
     if order.status == OrderStatus.REJECTED and order.payment_method == PaymentMethod.ONLINE and order.is_paid:
         text += "\n💳 Деньги вернём на карту — возврат обычно занимает до 3 рабочих дней."
     try:
-        await bot.send_message(order.user_id, text)
+        await bot.send_message(order.user_id, text, reply_markup=open_order(order.id))
         return True
     except TelegramForbiddenError:
         await users.mark_blocked(order.user_id)
