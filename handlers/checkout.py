@@ -13,7 +13,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
 import config
 from database import cart, users
-from database.models import CartLine, Order, OrderMethod, PaymentMethod
+from database.models import CartLine, Order, OrderMethod, OrderStatus, PaymentMethod
 from keyboards import checkout as kb
 from keyboards.callbacks import CartCb, CheckoutCb
 from orders import checkout as co
@@ -21,6 +21,7 @@ from orders import hours, pricing, service
 from orders.checkout import Draft
 from orders.formatting import when_text
 from orders.table import get_active_table
+from payments.invoice import start_payment
 from utils import screen
 from utils.format import esc, format_phone, money, normalize_phone
 from utils.timeutil import human_datetime, now_local
@@ -547,14 +548,15 @@ async def submit(callback: CallbackQuery, state: FSMContext, bot: Bot, draft: Dr
         await callback.answer()
         return
 
-    if draft.payment == PaymentMethod.ONLINE:
-        await callback.answer("Онлайн-оплата пока недоступна", show_alert=True)
-        return
-
     order = await service.place_order(
         bot, user_id=user_id, customer_name=callback.from_user.full_name, draft=draft, lines=lines,
     )
     await state.clear()
+    if order.status == OrderStatus.PENDING_PAYMENT:
+        # Заказ уйдёт персоналу после успешной оплаты (handlers/payment.py)
+        await start_payment(bot, chat_id, order)
+        await callback.answer()
+        return
     await show_order_placed(bot, chat_id, order, message=callback.message)
     await callback.answer("Заказ оформлен 🎉")
 

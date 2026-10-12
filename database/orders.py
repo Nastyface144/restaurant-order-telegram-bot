@@ -136,15 +136,19 @@ async def update_status(
 
 
 async def mark_paid(order_id: int, telegram_charge_id: str, provider_charge_id: str) -> bool:
-    """Онлайн-оплата прошла: заказ становится новым и уходит персоналу."""
+    """Онлайн-оплата прошла: заказ становится новым и уходит персоналу.
+
+    Заказ мог успеть отмениться по таймауту неоплаты ровно в момент оплаты —
+    деньги уже списаны, поэтому такой заказ тоже «оживляем».
+    """
     cursor = await db.execute(
         """
         UPDATE orders SET is_paid = 1, status = ?, telegram_charge_id = ?, provider_charge_id = ?,
                           updated_at = ?
-        WHERE id = ? AND status = ?
+        WHERE id = ? AND is_paid = 0 AND status IN (?, ?)
         """,
         (str(OrderStatus.NEW), telegram_charge_id, provider_charge_id, now_db(),
-         order_id, str(OrderStatus.PENDING_PAYMENT)),
+         order_id, str(OrderStatus.PENDING_PAYMENT), str(OrderStatus.CANCELLED)),
     )
     return cursor.rowcount > 0
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from config import FEATURES
+import config
 from database.cart import MAX_QTY
 from database.models import Category, MenuItem
 from utils.format import money
@@ -22,7 +22,7 @@ def categories(items: list[Category], cart_count: int) -> InlineKeyboardMarkup:
         kb.button(text=category.label, callback_data=CategoryCb(id=category.id))
     kb.adjust(2)
     bottom = [nav_button(BACK, "main")]
-    if FEATURES.ordering:
+    if config.FEATURES.ordering:
         bottom.append(cart_button(cart_count))
     kb.row(*bottom)
     return kb.as_markup()
@@ -49,7 +49,7 @@ def category_items(category: Category, items: list[MenuItem], page: int, cart_co
             nav.append(InlineKeyboardButton(text="▶️", callback_data=CategoryCb(id=category.id, page=page + 1).pack()))
         kb.row(*nav)
     bottom = [nav_button(BACK, "menu")]
-    if FEATURES.ordering:
+    if config.FEATURES.ordering:
         bottom.append(cart_button(cart_count))
     kb.row(*bottom)
     return kb.as_markup()
@@ -83,7 +83,7 @@ def item_card(item: MenuItem, size_code: str, mask: int, qty: int, page: int, ca
         for start in range(0, len(buttons), 2):
             kb.row(*buttons[start:start + 2])
 
-    if FEATURES.ordering:
+    if config.FEATURES.ordering:
         total = item.unit_price(size_code, item.addon_codes_from_mask(mask)) * qty
         kb.row(
             InlineKeyboardButton(text="➖", callback_data=state(q=max(1, qty - 1))),
@@ -93,7 +93,7 @@ def item_card(item: MenuItem, size_code: str, mask: int, qty: int, page: int, ca
         kb.row(InlineKeyboardButton(text=f"🛒 Добавить · {money(total)}", callback_data=state(a="add")))
 
     bottom = [InlineKeyboardButton(text=BACK, callback_data=CategoryCb(id=item.category_id, page=page).pack())]
-    if FEATURES.ordering:
+    if config.FEATURES.ordering:
         bottom.append(cart_button(cart_count))
     kb.row(*bottom)
     return kb.as_markup()

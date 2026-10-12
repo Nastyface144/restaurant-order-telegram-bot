@@ -36,3 +36,8 @@ class CartCb(CallbackData, prefix="cart"):
 class CheckoutCb(CallbackData, prefix="co"):
     a: str        # back | method | zone | addr | time | slots | phone | nocomment | pay | confirm
     v: str = ""
+
+
+class PayCb(CallbackData, prefix="pay"):
+    a: str  # cancel
+    order: int

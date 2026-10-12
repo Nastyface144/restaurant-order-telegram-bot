@@ -32,8 +32,6 @@ async def test_single_message_navigation(harness, always_open):
 
 async def test_disabled_sections_are_hidden(harness, always_open, monkeypatch):
     monkeypatch.setattr(config, "FEATURES", config.Features(booking=False))
-    import keyboards.client as kb
-    monkeypatch.setattr(kb, "FEATURES", config.FEATURES)
     await harness.send(USER, "/start")
     assert "📅 Забронировать столик" not in harness.buttons(USER)
 

@@ -2,7 +2,7 @@
 
 from aiogram import Router
 
-from . import cart, checkout, errors, fallback, menu, start
+from . import cart, checkout, errors, fallback, menu, payment, start
 from .middlewares import UserMiddleware
 
 
@@ -16,6 +16,7 @@ def setup_routers() -> Router:
         errors.router,
         start.router,
         menu.router,
+        payment.router,  # раньше checkout: оплата может прийти посреди нового оформления
         cart.router,
         checkout.router,
         fallback.router,
