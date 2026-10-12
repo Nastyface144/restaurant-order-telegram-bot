@@ -68,3 +68,8 @@ class BookAdminCb(CallbackData, prefix="bka"):
 
     a: str        # ok | no
     id: int
+
+
+class AdminCb(CallbackData, prefix="adm"):
+    a: str        # home | orders | bookings | stop | stopcat | toggle | bc | bc_send | bc_cancel
+    v: int = 0

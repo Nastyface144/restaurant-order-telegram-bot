@@ -64,3 +64,8 @@ async def save_photo_file_id(item_id: int, file_id: str) -> None:
 
 async def is_empty() -> bool:
     return not await db.fetchval("SELECT EXISTS (SELECT 1 FROM items)")
+
+
+async def count_stopped_by_category() -> dict[int, int]:
+    rows = await db.fetchall("SELECT category_id, COUNT(*) AS n FROM items WHERE is_available = 0 GROUP BY category_id")
+    return {r["category_id"]: r["n"] for r in rows}

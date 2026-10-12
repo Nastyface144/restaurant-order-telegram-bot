@@ -2,6 +2,8 @@
 
 from aiogram import Router
 
+from admin import handlers as admin_handlers
+
 from . import booking, cart, checkout, errors, fallback, menu, my_orders, payment, staff, start
 from .middlewares import UserMiddleware
 
@@ -16,6 +18,7 @@ def setup_routers() -> Router:
         errors.router,
         staff.router,
         booking.admin_router,
+        admin_handlers.router,
         start.router,
         menu.router,
         payment.router,  # раньше checkout: оплата может прийти посреди нового оформления
