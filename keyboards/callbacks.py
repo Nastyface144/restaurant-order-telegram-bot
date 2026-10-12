@@ -54,3 +54,17 @@ class StaffCb(CallbackData, prefix="st"):
 class OrdersCb(CallbackData, prefix="ord"):
     a: str        # view | repeat
     id: int
+
+
+class BookCb(CallbackData, prefix="bk"):
+    """Шаги брони у клиента."""
+
+    a: str        # date | time | guests | name | phone | confirm | back
+    v: str = ""
+
+
+class BookAdminCb(CallbackData, prefix="bka"):
+    """Решение администратора по брони."""
+
+    a: str        # ok | no
+    id: int
