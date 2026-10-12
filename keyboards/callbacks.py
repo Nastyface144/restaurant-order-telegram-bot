@@ -31,3 +31,8 @@ class ItemCb(CallbackData, prefix="it"):
 class CartCb(CallbackData, prefix="cart"):
     a: str        # inc | dec | del | clear | clear_yes | checkout
     line: int = 0
+
+
+class CheckoutCb(CallbackData, prefix="co"):
+    a: str        # back | method | zone | addr | time | slots | phone | nocomment | pay | confirm
+    v: str = ""

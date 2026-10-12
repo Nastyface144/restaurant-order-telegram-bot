@@ -2,7 +2,7 @@
 
 from aiogram import Router
 
-from . import cart, errors, fallback, menu, start
+from . import cart, checkout, errors, fallback, menu, start
 from .middlewares import UserMiddleware
 
 
@@ -17,6 +17,7 @@ def setup_routers() -> Router:
         start.router,
         menu.router,
         cart.router,
+        checkout.router,
         fallback.router,
     )
     return root
