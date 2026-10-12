@@ -26,3 +26,8 @@ class ItemCb(CallbackData, prefix="it"):
     q: int = 1      # количество
     p: int = 0      # страница категории — чтобы «Назад» вернул туда же
     a: str = "v"    # v — показать, add — добавить в корзину, n — ничего (информационная кнопка)
+
+
+class CartCb(CallbackData, prefix="cart"):
+    a: str        # inc | dec | del | clear | clear_yes | checkout
+    line: int = 0
