@@ -1,11 +1,20 @@
-"""Сборка всех роутеров бота."""
+"""Сборка всех роутеров бота. Порядок важен: fallback — последним."""
 
 from aiogram import Router
 
-from . import errors
+from . import errors, fallback, start
+from .middlewares import UserMiddleware
 
 
 def setup_routers() -> Router:
     root = Router(name="root")
-    root.include_router(errors.router)
+    user_mw = UserMiddleware()
+    root.message.outer_middleware(user_mw)
+    root.callback_query.outer_middleware(user_mw)
+
+    root.include_routers(
+        errors.router,
+        start.router,
+        fallback.router,
+    )
     return root
