@@ -63,7 +63,7 @@ async def test_stop_list_toggle(harness, always_open):
 
     # клиент блюдо не видит
     await harness.send(USER, "/start")
-    await harness.click(USER, "Меню")
+    await harness.click(USER, "меню")
     await harness.click(USER, "Пицца")
     assert not any("Маргарита" in b for b in harness.buttons(USER))
 

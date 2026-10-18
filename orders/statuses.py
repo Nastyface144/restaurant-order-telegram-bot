@@ -70,31 +70,95 @@ def previous_statuses(target: OrderStatus, method: OrderMethod) -> set[OrderStat
     return {s for s in ACTIVE_STATUSES if (t := next_transition(s, method)) and t.to == target}
 
 
+# Этапы трекера заказа для клиента: (статус, эмодзи текущего этапа, подпись)
+TRACKER_STAGES: dict[OrderMethod, tuple[tuple[OrderStatus, str, str], ...]] = {
+    OrderMethod.DELIVERY: (
+        (OrderStatus.ACCEPTED, "✅", "Заказ принят"),
+        (OrderStatus.COOKING, "👨‍🍳", "Готовим"),
+        (OrderStatus.ON_THE_WAY, "🛵", "Курьер в пути"),
+        (OrderStatus.COMPLETED, "🎉", "Доставлен"),
+    ),
+    OrderMethod.PICKUP: (
+        (OrderStatus.ACCEPTED, "✅", "Заказ принят"),
+        (OrderStatus.COOKING, "👨‍🍳", "Готовим"),
+        (OrderStatus.READY, "🛎", "Готов — можно забирать"),
+        (OrderStatus.COMPLETED, "🎉", "Выдан"),
+    ),
+    OrderMethod.TABLE: (
+        (OrderStatus.ACCEPTED, "✅", "Заказ принят"),
+        (OrderStatus.COOKING, "👨‍🍳", "Готовим"),
+        (OrderStatus.READY, "🛎", "Несём к столу"),
+        (OrderStatus.COMPLETED, "🎉", "Приятного аппетита"),
+    ),
+}
+
+SHORT_STATUS = {
+    OrderStatus.PENDING_PAYMENT: "ждёт оплаты",
+    OrderStatus.NEW: "ждёт подтверждения",
+    OrderStatus.ACCEPTED: "принят",
+    OrderStatus.COOKING: "готовим",
+    OrderStatus.READY: "готов",
+    OrderStatus.ON_THE_WAY: "в пути",
+    OrderStatus.COMPLETED: "выполнен",
+    OrderStatus.REJECTED: "отклонён",
+    OrderStatus.CANCELLED: "отменён",
+}
+
+
+def short_status(order) -> str:
+    if order.status == OrderStatus.READY and order.method == OrderMethod.TABLE:
+        return "несём к столу"
+    if order.status == OrderStatus.READY:
+        return "можно забирать"
+    return SHORT_STATUS[order.status]
+
+
+def tracker(status: OrderStatus, method: OrderMethod) -> str:
+    """Прогресс заказа столбиком: пройденные этапы — ✅, текущий — жирным, будущие — ⚪️."""
+    stages = TRACKER_STAGES[method]
+    order_of = [stage[0] for stage in stages]
+    current = order_of.index(status) if status in order_of else -1
+    lines = []
+    if status == OrderStatus.NEW:
+        lines.append("⏳ <b>Ждём подтверждения заведения</b>")
+    for index, (_, icon, label) in enumerate(stages):
+        if index < current:
+            lines.append(f"✅ {label}")
+        elif index == current:
+            lines.append(f"{icon} <b>{label}</b>")
+        else:
+            lines.append(f"⚪️ {label}")
+    return "<blockquote>" + "\n".join(lines) + "</blockquote>"
+
+
 def client_notification(order_id: int, status: OrderStatus, method: OrderMethod,
                         reason: str | None = None) -> str | None:
-    """Текст уведомления клиенту о смене статуса."""
+    """Уведомление клиенту о смене статуса: заголовок, одна строка пояснения и трекер."""
     n = f"№{order_id}"
-    if status == OrderStatus.ACCEPTED:
-        return f"✅ Заказ {n} принят! Скоро начнём готовить."
-    if status == OrderStatus.COOKING:
-        return f"👨‍🍳 Заказ {n} готовится."
+    heads = {
+        OrderStatus.ACCEPTED: ("✅ <b>Заказ принят!</b>", f"Заказ {n} уже у нас — скоро начнём готовить."),
+        OrderStatus.COOKING: ("👨‍🍳 <b>Готовим ваш заказ</b>", f"Заказ {n} на кухне."),
+        OrderStatus.ON_THE_WAY: ("🛵 <b>Курьер выехал!</b>", f"Заказ {n} скоро будет у вас."),
+    }
     if status == OrderStatus.READY:
-        if method == OrderMethod.TABLE:
-            return f"🛎 Заказ {n} готов — уже несём к вашему столу!"
-        return f"🛎 Заказ {n} готов к выдаче! Ждём вас 🙌"
-    if status == OrderStatus.ON_THE_WAY:
-        return f"🛵 Курьер выехал с заказом {n}. Скоро будет у вас!"
+        heads[status] = (
+            ("🛎 <b>Несём к вашему столу!</b>", f"Заказ {n} готов.") if method == OrderMethod.TABLE
+            else ("🛎 <b>Заказ готов!</b>", f"Заказ {n} ждёт вас — можно забирать 🙌")
+        )
     if status == OrderStatus.COMPLETED:
-        if method == OrderMethod.DELIVERY:
-            return f"🎉 Заказ {n} доставлен. Приятного аппетита!"
-        if method == OrderMethod.PICKUP:
-            return f"🎉 Заказ {n} выдан. Приятного аппетита!"
-        return "🎉 Приятного аппетита! Будем рады видеть вас снова."
+        line = {
+            OrderMethod.DELIVERY: f"Заказ {n} доставлен.",
+            OrderMethod.PICKUP: f"Заказ {n} выдан.",
+        }.get(method, "Будем рады видеть вас снова.")
+        heads[status] = ("🎉 <b>Приятного аппетита!</b>", line)
+    if status in heads:
+        head, line = heads[status]
+        return f"{head}\n{line}\n\n{tracker(status, method)}"
     if status == OrderStatus.REJECTED:
-        text = f"😔 К сожалению, заказ {n} отклонён."
+        text = f"😔 <b>Заказ {n} отклонён</b>"
         if reason:
             text += f"\nПричина: {reason}"
         return text
     if status == OrderStatus.CANCELLED:
-        return f"🚫 Заказ {n} отменён."
+        return f"🚫 <b>Заказ {n} отменён</b>"
     return None

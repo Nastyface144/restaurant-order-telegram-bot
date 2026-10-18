@@ -16,10 +16,12 @@ from database import cart, users
 from database.models import CartLine, Order, OrderMethod, OrderStatus, PaymentMethod
 from keyboards import checkout as kb
 from keyboards.callbacks import CartCb, CheckoutCb
+from keyboards.common import progress_bar
 from orders import checkout as co
 from orders import hours, pricing, service
 from orders.checkout import Draft
 from orders.formatting import when_text
+from orders.statuses import tracker
 from orders.table import get_active_table
 from payments.invoice import start_payment
 from utils import screen
@@ -76,11 +78,12 @@ async def draft_or_restart(callback: CallbackQuery, state: FSMContext, bot: Bot)
 # ---------------------------------------------------------------------------
 
 def _progress(draft: Draft) -> str:
+    """Заголовок с прогресс-баром: «▰▰▱▱▱▱  шаг 2 из 6»."""
     if draft.method is None:  # пока не выбран способ получения, число шагов неизвестно
-        return "📝 <b>Оформление заказа</b>"
+        return "<b>Оформление заказа</b>"
     seq = co.steps(draft)
     position = seq.index(draft.step) + 1 if draft.step in seq else 1
-    return f"📝 <b>Оформление заказа</b> · шаг {position} из {len(seq)}"
+    return f"<b>Оформление заказа</b>\n{progress_bar(position, len(seq))}  шаг {position} из {len(seq)}"
 
 
 def _summary(draft: Draft, lines: list[CartLine]) -> tuple[str, int]:
@@ -91,11 +94,12 @@ def _summary(draft: Draft, lines: list[CartLine]) -> tuple[str, int]:
     fee = pricing.delivery_fee(zone, items_total) if zone else 0
     total = items_total + fee
 
-    rows = ["📋 <b>Проверьте заказ</b>", ""]
-    for n, line in enumerate(available, 1):
+    rows = ["📋 <b>Проверьте заказ</b>"]
+    receipt = []
+    for line in available:
         qty = f" × {line.qty}" if line.qty > 1 else ""
-        rows.append(f"{n}. {esc(pricing.line_title(line))}{qty} — {money(line.total)}")
-    rows.append("")
+        receipt.append(f"{esc(pricing.line_title(line))}{qty} — {money(line.total)}")
+    rows.append("<blockquote>" + "\n".join(receipt) + "</blockquote>")
 
     rows.append(co.METHOD_TITLES[OrderMethod(draft.method)] + (f" · {esc(zone.title)}" if zone else ""))
     if draft.method == OrderMethod.TABLE:
@@ -111,9 +115,8 @@ def _summary(draft: Draft, lines: list[CartLine]) -> tuple[str, int]:
         rows.append(f"💬 {esc(draft.comment)}")
     rows.append(co.PAYMENT_TITLES[PaymentMethod(draft.payment)])
     rows.append("")
-    rows.append(f"Товары: {money(items_total)}")
     if zone:
-        rows.append(f"Доставка: {'бесплатно' if fee == 0 else money(fee)}")
+        rows.append(f"Товары: {money(items_total)} · доставка: {'бесплатно' if fee == 0 else money(fee)}")
     rows.append(f"<b>Итого: {money(total)}</b>")
     return "\n".join(rows), total
 
@@ -136,7 +139,7 @@ async def render(
     keyboard: InlineKeyboardMarkup
 
     if step == "method":
-        body = "Как хотите получить заказ?"
+        body = "Как хотите получить заказ? 👇"
         keyboard = kb.methods(co.available_methods())
 
     elif step == "zone":
@@ -144,20 +147,22 @@ async def render(
         for zone in config.DELIVERY_ZONES:
             fee = pricing.delivery_fee(zone, items_total)
             fee_text = "бесплатно" if fee == 0 else money(fee)
-            conditions = f"💰 Доставка {fee_text} · заказ от {money(zone.min_order)}"
+            conditions = f"Доставка {fee_text} · заказ от {money(zone.min_order)}"
             if zone.free_from and fee:
                 conditions += f" · бесплатно от {money(zone.free_from)}"
             zone_lines.append(
-                f"<b>{esc(zone.title)}</b>\n{esc(zone.description)}\n{conditions}\n⏱ ≈{zone.eta_minutes} мин"
+                f"<blockquote><b>{esc(zone.title)}</b> · ≈{zone.eta_minutes} мин\n{esc(zone.description)}\n"
+                f"{conditions}</blockquote>"
             )
-        body = "🚚 Выберите зону доставки:\n\n" + "\n\n".join(zone_lines)
+        body = "🛵 <b>Куда везём?</b> Выберите зону доставки:\n" + "".join(zone_lines)
         keyboard = kb.zones(items_total)
 
     elif step == "address":
         user = await users.get_user(user_id)
-        body = "📍 Напишите адрес доставки одним сообщением:\nулица, дом, подъезд, этаж, квартира."
+        body = ("📍 <b>Напишите адрес доставки</b> одним сообщением\n"
+                "<i>Например: Садовая, 5, подъезд 2, этаж 4, кв. 12</i>")
         if user and user.last_address:
-            body += "\n\nИли выберите прошлый адрес кнопкой 👇"
+            body += "\n\nИли нажмите на прошлый адрес 👇"
         keyboard = kb.address(user.last_address if user else None)
 
     elif step == "time":
@@ -167,14 +172,13 @@ async def render(
             has_choice = asap
             if not show_slots and has_choice:
                 zone = draft.zone
-                eta = f" — привезём примерно за {zone.eta_minutes} минут" if zone else ""
-                body = f"🕐 Когда доставить?\n\n⚡ Как можно скорее{eta}\n🕐 Или ко времени"
-                keyboard = kb.time_delivery(asap)
+                body = "🕐 <b>Когда доставить?</b>"
+                keyboard = kb.time_delivery(asap, zone.eta_minutes if zone else None)
         else:
             quick = co.quick_pickup_options(now)
             has_choice = bool(quick)
             if not show_slots and has_choice:
-                body = f"🕐 Когда заберёте заказ?\n\n🏠 Адрес: {esc(config.VENUE_ADDRESS)}"
+                body = f"🕐 <b>Когда заберёте?</b>\n📍 {esc(config.VENUE_ADDRESS)}"
                 keyboard = kb.time_pickup(quick)
         if show_slots or not has_choice:
             slots = hours.time_slots(lead_minutes=co.lead_minutes(draft.method), now=now)
@@ -185,26 +189,26 @@ async def render(
                 closed = f"Сейчас мы не принимаем заказы, откроемся {human_datetime(opening)}. " if opening else ""
                 body = f"🕐 {closed}Выберите удобное время — приготовим к нему:"
             else:
-                body = "🕐 Выберите время:"
+                body = "🕐 <b>Выберите время</b> 👇"
             keyboard = kb.slots(slots, now.date(), back_to_choice=has_choice)
 
     elif step == "phone":
         user = await users.get_user(user_id)
-        body = "📞 Напишите номер телефона для связи, например +7 999 123-45-67."
+        body = "📞 <b>Ваш телефон</b> — позвоним, если нужно что-то уточнить\n<i>Например: +7 999 123-45-67</i>"
         if user and user.phone:
-            body += "\n\nИли используйте прошлый номер 👇"
+            body += "\n\nИли нажмите на прошлый номер 👇"
         keyboard = kb.phone(user.phone if user else None)
 
     elif step == "comment":
         body = (
-            "💬 Комментарий к заказу?\n\n"
-            "Например: «без лука», «код домофона 12», «нужна сдача с 5000».\n"
-            "Напишите его сообщением или нажмите «Без комментария»."
+            "💬 <b>Комментарий к заказу?</b>\n"
+            "<i>«без лука», «код домофона 12», «сдача с 5000»</i>\n\n"
+            "Напишите сообщением или пропустите 👇"
         )
         keyboard = kb.comment()
 
     elif step == "payment":
-        body = "💳 Как будете оплачивать?"
+        body = "💳 <b>Как будете оплачивать?</b>"
         keyboard = kb.payment(co.payment_options(draft.method))
 
     else:  # confirm
@@ -218,7 +222,7 @@ async def render(
 
     await save_draft(state, draft)
     await state.set_state(INPUT_STATES.get(step, CheckoutForm.buttons))
-    await screen.show(bot, chat_id, text, keyboard, message=message)
+    await screen.show(bot, chat_id, text, keyboard, picture=screen.banner("checkout"), message=message)
 
 
 async def go_to(step: str, draft: Draft, bot: Bot, state: FSMContext, *, user_id: int, chat_id: int,
@@ -562,16 +566,16 @@ async def submit(callback: CallbackQuery, state: FSMContext, bot: Bot, draft: Dr
 
 
 async def show_order_placed(bot: Bot, chat_id: int, order: Order, message: Message | None = None) -> None:
+    if order.method == OrderMethod.TABLE:
+        where = f"принесём к столу №{order.table_no}"
+    else:
+        where = when_text(order).lower()
     rows = [
         f"🎉 <b>Заказ №{order.id} оформлен!</b>",
+        f"💰 {money(order.total)} · 🕐 {where}",
         "",
-        "Мы передали его в заведение. Как только заказ примут, пришлём уведомление, "
-        "а дальше будем сообщать о каждом шаге.",
-        "",
-        f"💰 Сумма: <b>{money(order.total)}</b>",
+        tracker(order.status, order.method),
+        "Пришлём уведомление на каждом шаге 🙌",
     ]
-    if order.method == OrderMethod.TABLE:
-        rows.append(f"🍽 Принесём к столу №{order.table_no}")
-    else:
-        rows.append(f"🕐 {when_text(order)}")
-    await screen.show(bot, chat_id, "\n".join(rows), kb.done(), message=message)
+    await screen.show(bot, chat_id, "\n".join(rows), kb.done(order.id), picture=screen.banner("done"),
+                      message=message)

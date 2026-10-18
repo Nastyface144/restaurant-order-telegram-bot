@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import config
@@ -11,51 +11,60 @@ from database.models import Category, MenuItem
 from utils.format import money
 
 from .callbacks import CategoryCb, ItemCb
-from .common import BACK, cart_button, nav_button
+from .common import BACK, PRIMARY, SUCCESS, button, cart_button, nav_button
 
 ITEMS_PER_PAGE = 8
 
 
-def categories(items: list[Category], cart_count: int) -> InlineKeyboardMarkup:
+def _bottom(back_data: str, cart_count: int, cart_total: int) -> list:
+    row = [button(BACK, back_data)]
+    if config.FEATURES.ordering:
+        row.append(cart_button(cart_count, cart_total))
+    return row
+
+
+def categories(items: list[Category], cart_count: int, cart_total: int) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     for category in items:
-        kb.button(text=category.label, callback_data=CategoryCb(id=category.id))
+        kb.add(button(category.label, CategoryCb(id=category.id).pack()))
     kb.adjust(2)
-    bottom = [nav_button(BACK, "main")]
+    row = [nav_button(BACK, "main")]
     if config.FEATURES.ordering:
-        bottom.append(cart_button(cart_count))
-    kb.row(*bottom)
+        row.append(cart_button(cart_count, cart_total))
+    kb.row(*row)
     return kb.as_markup()
 
 
-def category_items(category: Category, items: list[MenuItem], page: int, cart_count: int) -> InlineKeyboardMarkup:
+def price_from(item: MenuItem) -> str:
+    return f"от {money(item.min_price)}" if len(item.sizes) > 1 else money(item.min_price)
+
+
+def category_items(category: Category, items: list[MenuItem], page: int, cart_count: int,
+                   cart_total: int) -> InlineKeyboardMarkup:
     pages = max(1, -(-len(items) // ITEMS_PER_PAGE))
     page = min(max(page, 0), pages - 1)
     chunk = items[page * ITEMS_PER_PAGE:(page + 1) * ITEMS_PER_PAGE]
 
     kb = InlineKeyboardBuilder()
     for item in chunk:
-        price = f"от {money(item.min_price)}" if len(item.sizes) > 1 else money(item.min_price)
-        kb.row(InlineKeyboardButton(
-            text=f"{item.title} · {price}",
-            callback_data=ItemCb(id=item.id, p=page).pack(),
-        ))
+        kb.row(button(f"{item.title} · {price_from(item)}", ItemCb(id=item.id, p=page).pack()))
     if pages > 1:
         nav = []
         if page > 0:
-            nav.append(InlineKeyboardButton(text="◀️", callback_data=CategoryCb(id=category.id, page=page - 1).pack()))
-        nav.append(InlineKeyboardButton(text=f"{page + 1} / {pages}", callback_data="noop"))
+            nav.append(button("◀️", CategoryCb(id=category.id, page=page - 1).pack()))
+        nav.append(button(f"{page + 1} / {pages}", "noop"))
         if page < pages - 1:
-            nav.append(InlineKeyboardButton(text="▶️", callback_data=CategoryCb(id=category.id, page=page + 1).pack()))
+            nav.append(button("▶️", CategoryCb(id=category.id, page=page + 1).pack()))
         kb.row(*nav)
-    bottom = [nav_button(BACK, "menu")]
+    row = [nav_button(BACK, "menu")]
     if config.FEATURES.ordering:
-        bottom.append(cart_button(cart_count))
-    kb.row(*bottom)
+        row.append(cart_button(cart_count, cart_total))
+    kb.row(*row)
     return kb.as_markup()
 
 
-def item_card(item: MenuItem, size_code: str, mask: int, qty: int, page: int, cart_count: int) -> InlineKeyboardMarkup:
+def item_card(item: MenuItem, size_code: str, mask: int, qty: int, page: int, cart_count: int,
+              cart_total: int) -> InlineKeyboardMarkup:
     def state(**changes) -> str:
         values = {"id": item.id, "s": size_code, "m": mask, "q": qty, "p": page, "a": "v"}
         values.update(changes)
@@ -65,20 +74,22 @@ def item_card(item: MenuItem, size_code: str, mask: int, qty: int, page: int, ca
 
     if len(item.sizes) > 1:
         kb.row(*[
-            InlineKeyboardButton(
-                text=f"{'✅ ' if size.code == size_code else ''}{size.title} · {money(size.price)}",
-                callback_data=state(s=size.code),
+            button(
+                ("✓ " if size.code == size_code else "") + f"{size.title} · {money(size.price)}",
+                state(s=size.code),
+                style=PRIMARY if size.code == size_code else None,
             )
             for size in item.sizes
-        ], width=3)
+        ])
 
     if item.addons:
         buttons = []
         for i, addon in enumerate(item.addons):
             selected = bool(mask >> i & 1)
-            buttons.append(InlineKeyboardButton(
-                text=f"{'✅' if selected else '➕'} {addon.title} +{money(addon.price)}",
-                callback_data=state(m=mask ^ (1 << i)),
+            buttons.append(button(
+                f"{'✓' if selected else '+'} {addon.title} {money(addon.price)}",
+                state(m=mask ^ (1 << i)),
+                style=SUCCESS if selected else None,
             ))
         for start in range(0, len(buttons), 2):
             kb.row(*buttons[start:start + 2])
@@ -86,14 +97,11 @@ def item_card(item: MenuItem, size_code: str, mask: int, qty: int, page: int, ca
     if config.FEATURES.ordering:
         total = item.unit_price(size_code, item.addon_codes_from_mask(mask)) * qty
         kb.row(
-            InlineKeyboardButton(text="➖", callback_data=state(q=max(1, qty - 1))),
-            InlineKeyboardButton(text=f"{qty} шт.", callback_data=state(a="n")),
-            InlineKeyboardButton(text="➕", callback_data=state(q=min(MAX_QTY, qty + 1))),
+            button("−", state(q=max(1, qty - 1))),
+            button(f"{qty} шт", state(a="n")),
+            button("+", state(q=min(MAX_QTY, qty + 1))),
         )
-        kb.row(InlineKeyboardButton(text=f"🛒 Добавить · {money(total)}", callback_data=state(a="add")))
+        kb.row(button(f"🛒 В корзину · {money(total)}", state(a="add"), style=SUCCESS))
 
-    bottom = [InlineKeyboardButton(text=BACK, callback_data=CategoryCb(id=item.category_id, page=page).pack())]
-    if config.FEATURES.ordering:
-        bottom.append(cart_button(cart_count))
-    kb.row(*bottom)
+    kb.row(*_bottom(CategoryCb(id=item.category_id, page=page).pack(), cart_count, cart_total))
     return kb.as_markup()

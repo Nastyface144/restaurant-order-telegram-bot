@@ -15,11 +15,13 @@ async def test_empty_history(harness, always_open):
     await harness.send(USER, "/start")
     await harness.click(USER, "Мои заказы")
     assert "ещё ничего не заказывали" in harness.screen_text(USER)
-    assert "📖 Открыть меню" in harness.buttons(USER)
+    assert "🍕 Открыть меню" in harness.buttons(USER)
 
 
 async def test_history_details_and_repeat(harness, always_open):
     await place_order(harness)  # 2 × Маргарита 30 см
+    await harness.click(USER, "На главную")
+    assert any(b.startswith("📦 Заказ №1 · ждёт подтверждения") for b in harness.buttons(USER))
     await harness.click(USER, "Мои заказы")
     assert harness.buttons(USER)[0].startswith("№1 · ") and "Новый" in harness.buttons(USER)[0]
 
@@ -38,8 +40,7 @@ async def test_repeat_with_stopped_item(harness, always_open):
     await place_order(harness)
     item = (await menu.get_items((await menu.get_categories())[0].id))[0]
     await menu.toggle_availability(item.id)
-    await harness.click(USER, "Мои заказы")
-    await harness.click(USER, "№1")
+    await harness.click(USER, "Следить за заказом")
     await harness.click(USER, "Повторить заказ")
     assert "Повторить не получилось" in harness.screen_text(USER)
     assert await cart.get_cart(USER) == []
@@ -51,7 +52,8 @@ async def test_status_notification_opens_order(harness, always_open):
     notification = harness.session.last_message(USER)
     assert "принят" in notification["text"]
     await harness.click(USER, "Открыть заказ", message=notification)
-    assert "Статус: <b>✅ Принят</b>" in harness.screen_text(USER)
+    text = harness.screen_text(USER)
+    assert "Статус: <b>✅ Принят</b>" in text and "✅ <b>Заказ принят</b>" in text and "⚪️ Готовим" in text
 
 
 async def test_cannot_open_foreign_order(harness, always_open):

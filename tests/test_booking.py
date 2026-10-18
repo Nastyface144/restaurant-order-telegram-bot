@@ -19,7 +19,7 @@ def setup(monkeypatch):
 
 async def book(h, guests="4", name_typed=None):
     await h.send(USER, "/start")
-    await h.click(USER, "Забронировать столик")
+    await h.click(USER, "Забронировать")
     await h.click(USER, "Завтра")
     await h.click(USER, "19:00", exact=True)
     await h.click(USER, guests, exact=True)
@@ -58,7 +58,7 @@ async def test_full_booking_flow(harness):
 
     # бронь видна в разделе
     await harness.send(USER, "/start")
-    await harness.click(USER, "Забронировать столик")
+    await harness.click(USER, "Забронировать")
     assert "Ваши брони" in harness.screen_text(USER) and "Подтверждена" in harness.screen_text(USER)
 
 
@@ -73,10 +73,10 @@ async def test_reject_booking(harness):
 
 async def test_back_navigation_and_validation(harness):
     await harness.send(USER, "/start")
-    await harness.click(USER, "Забронировать столик")
+    await harness.click(USER, "Забронировать")
     await harness.click(USER, "Завтра")
     await harness.click(USER, "Назад")
-    assert "Выберите дату" in harness.screen_text(USER)
+    assert "Выберите день" in harness.screen_text(USER)
     await harness.click(USER, "Завтра")
     await harness.click(USER, "20:00", exact=True)
     await harness.click(USER, "3", exact=True)
@@ -107,4 +107,4 @@ async def test_stranger_cannot_decide(harness):
 async def test_booking_disabled(harness, monkeypatch):
     monkeypatch.setattr(config, "FEATURES", config.Features(booking=False))
     await harness.send(USER, "/start")
-    assert "📅 Забронировать столик" not in harness.buttons(USER)
+    assert "📅 Забронировать" not in harness.buttons(USER)

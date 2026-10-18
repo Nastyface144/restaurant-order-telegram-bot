@@ -73,7 +73,7 @@ async def test_status_chain(harness, always_open, method, chain, final_text):
 
     notes = client_messages(harness)
     assert any("принят" in t for t in notes)
-    assert any("готовится" in t for t in notes)
+    assert any("Готовим ваш заказ" in t for t in notes)
     assert final_text in notes[-1]
 
 

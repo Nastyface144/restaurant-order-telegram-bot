@@ -76,3 +76,9 @@ async def count_cart_items(user_id: int) -> int:
            JOIN items i ON i.id = c.item_id WHERE c.user_id = ?""",
         (user_id,),
     ) or 0
+
+
+async def cart_summary(user_id: int) -> tuple[int, int]:
+    """(сколько штук, на какую сумму) — только то, что сейчас есть в продаже."""
+    lines = [line for line in await get_cart(user_id) if line.item.is_available]
+    return sum(line.qty for line in lines), sum(line.total for line in lines)

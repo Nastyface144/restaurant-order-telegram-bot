@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import config
-from database.models import Order, OrderMethod, PaymentMethod
+from database.models import Order, OrderMethod, OrderStatus, PaymentMethod
 from utils.format import esc, format_phone, money
 from utils.timeutil import human_datetime, now_local
 
 from .checkout import METHOD_TITLES, PAYMENT_TITLES
-from .statuses import status_label
+from .statuses import TRACKER_STAGES, status_label, tracker
 
 SEPARATOR = "┈┈┈┈┈┈┈┈┈┈┈┈"
 
@@ -82,11 +82,13 @@ def staff_card(order: Order, customer_username: str | None = None) -> str:
 def client_card(order: Order) -> str:
     """Заказ в разделе «Мои заказы»."""
     lines = [
-        f"🧾 <b>Заказ №{order.id}</b> от {order.created_at:%d.%m %H:%M}",
+        f"🧾 <b>Заказ №{order.id}</b> · {order.created_at:%d.%m, %H:%M}",
         f"Статус: <b>{status_label(order.status, order.method)}</b>",
-        "",
-        *items_block(order),
-        "",
+    ]
+    if order.method in TRACKER_STAGES and order.status not in (OrderStatus.REJECTED, OrderStatus.CANCELLED):
+        lines.append(tracker(order.status, order.method))
+    lines += [
+        "<blockquote>" + "\n".join(items_block(order)) + "</blockquote>",
         *totals_block(order),
         "",
         METHOD_TITLES[order.method] + (f" · стол №{order.table_no}" if order.method == OrderMethod.TABLE else ""),

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+from aiogram.enums import ButtonStyle
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
@@ -13,11 +14,11 @@ from utils.format import format_phone, truncate
 from utils.timeutil import WEEKDAYS_SHORT, human_date
 
 from .callbacks import BookAdminCb, BookCb
-from .common import BACK, home_button
+from .common import BACK, DANGER, PRIMARY, SUCCESS, button, home_button
 
 
-def _btn(text: str, a: str, v: str = "") -> InlineKeyboardButton:
-    return InlineKeyboardButton(text=text, callback_data=BookCb(a=a, v=v).pack())
+def _btn(text: str, a: str, v: str = "", style: ButtonStyle | None = None) -> InlineKeyboardButton:
+    return button(text, BookCb(a=a, v=v).pack(), style=style)
 
 
 def _day_label(day: date, today: date) -> str:
@@ -56,7 +57,7 @@ def guests() -> InlineKeyboardMarkup:
 def name(suggested: str | None) -> InlineKeyboardMarkup:
     rows = []
     if suggested:
-        rows.append([_btn(f"👤 {truncate(suggested, 30)}", "name")])
+        rows.append([_btn(f"👤 {truncate(suggested, 30)}", "name", style=PRIMARY)])
     rows.append([_btn(BACK, "back")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -64,14 +65,14 @@ def name(suggested: str | None) -> InlineKeyboardMarkup:
 def phone(saved: str | None) -> InlineKeyboardMarkup:
     rows = []
     if saved:
-        rows.append([_btn(f"📞 {format_phone(saved)}", "phone")])
+        rows.append([_btn(f"📞 {format_phone(saved)}", "phone", style=PRIMARY)])
     rows.append([_btn(BACK, "back")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def confirm() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [_btn("✅ Отправить заявку", "confirm")],
+        [_btn("✅ Отправить заявку", "confirm", style=SUCCESS)],
         [_btn(BACK, "back")],
     ])
 
@@ -84,6 +85,6 @@ def admin_decision(booking: Booking) -> InlineKeyboardMarkup | None:
     if booking.status != BookingStatus.PENDING:
         return None
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="✅ Подтвердить", callback_data=BookAdminCb(a="ok", id=booking.id).pack()),
-        InlineKeyboardButton(text="❌ Нет мест", callback_data=BookAdminCb(a="no", id=booking.id).pack()),
+        button("✅ Подтвердить", BookAdminCb(a="ok", id=booking.id).pack(), style=SUCCESS),
+        button("❌ Нет мест", BookAdminCb(a="no", id=booking.id).pack(), style=DANGER),
     ]])

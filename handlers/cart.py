@@ -1,4 +1,4 @@
-"""Корзина: количество, удаление, итог с доставкой."""
+"""Корзина: количество, удаление, итог и подсказки про доставку."""
 
 from __future__ import annotations
 
@@ -19,58 +19,75 @@ router = Router(name="cart")
 router.callback_query.filter(F.message.chat.type == "private")
 
 
-def totals_block(items_total: int, table_no: int | None) -> list[str]:
-    """Итог корзины с учётом способов получения."""
-    lines = [f"💰 Товары: <b>{money(items_total)}</b>"]
-    if table_no:
-        lines.append(f"🍽 Оплата на месте, за столом №{table_no}")
-        return lines
+def delivery_hints(items_total: int) -> list[str]:
+    """Коротко о доставке и подсказка, сколько добавить до бесплатной."""
+    if not config.FEATURES.delivery or not config.DELIVERY_ZONES:
+        return []
+    zones = config.DELIVERY_ZONES
+    min_order = min(z.min_order for z in zones)
+    if items_total < min_order:
+        hint = f"🛵 Доставка — от {money(min_order)}: добавьте ещё {money(min_order - items_total)}"
+        if config.FEATURES.pickup:
+            hint += "\n🏃 Самовывоз — без минимальной суммы"
+        return [hint]
 
-    if config.FEATURES.delivery:
-        lines += ["", "🚚 <b>Итого с доставкой:</b>"]
-        for zone in config.DELIVERY_ZONES:
-            shortfall = pricing.min_order_shortfall(zone, items_total)
-            if shortfall:
-                lines.append(f"• {esc(zone.title)}: заказ от {money(zone.min_order)} — добавьте ещё {money(shortfall)}")
-                continue
-            fee = pricing.delivery_fee(zone, items_total)
-            fee_text = "доставка бесплатно" if fee == 0 else f"доставка {money(fee)}"
-            lines.append(f"• {esc(zone.title)}: <b>{money(items_total + fee)}</b> ({fee_text})")
-    if config.FEATURES.pickup:
-        lines += ["", f"🏃 Самовывоз: <b>{money(items_total)}</b>"]
+    free_zones = [z for z in zones if z.free_from]
+    reached = [z for z in free_zones if items_total >= z.free_from]
+    if reached:
+        names = ", ".join(z.title.split(" — ")[0].lower() for z in reached)
+        return [f"🎁 Доставка бесплатно ({names})"]
+    price = min(z.price for z in zones)
+    lines = [f"🛵 Доставка от {money(price)}"]
+    if free_zones:
+        nearest = min(free_zones, key=lambda z: z.free_from)
+        lines.append(f"💡 Ещё {money(nearest.free_from - items_total)} — и доставим бесплатно")
     return lines
+
+
+def cart_text(lines, table_no: int | None, notice: str | None = None) -> str:
+    count = sum(line.qty for line in lines if line.item.is_available)
+    rows = [f"<b>Корзина</b> · {count} шт", ""]
+    blocks = []
+    for line in lines:
+        title = f"<b>{esc(line.item.title)}</b>"
+        options = esc(pricing.line_title(line)[len(line.item.title):].lstrip(", "))
+        if options:
+            title += f" · {options}"
+        if not line.item.is_available:
+            blocks.append(f"⛔ <s>{esc(line.item.title)}</s> — закончилось, не войдёт в заказ")
+        elif line.qty == 1:
+            blocks.append(f"{title}\n{money(line.total)}")
+        else:
+            blocks.append(f"{title}\n{line.qty} × {money(line.unit_price)} = <b>{money(line.total)}</b>")
+    rows.append("<blockquote>" + "\n\n".join(blocks) + "</blockquote>")
+
+    items_total = pricing.subtotal(lines)
+    rows.append(f"Итого: <b>{money(items_total)}</b>")
+    if table_no:
+        rows.append(f"🍽 Принесём к столу №{table_no}, оплата на месте")
+    else:
+        rows += delivery_hints(items_total)
+    if notice:
+        rows = [notice, "", *rows]
+    return "\n".join(rows)
 
 
 async def show_cart(bot: Bot, callback: CallbackQuery, notice: str | None = None) -> None:
     user_id = callback.from_user.id
     lines = await cart.get_cart(user_id)
     chat_id = callback.message.chat.id
+    picture = screen.banner("cart")
 
     if not lines:
-        text = "🛒 <b>Корзина пуста</b>\n\nЗагляните в меню — там много вкусного 🍕"
+        text = "<b>Корзина пуста</b>\nЗагляните в меню — там много вкусного 🍕"
         if notice:
             text = f"{notice}\n\n{text}"
-        await screen.show(bot, chat_id, text, kb.empty_cart(), message=callback.message)
+        await screen.show(bot, chat_id, text, kb.empty_cart(), picture=picture, message=callback.message)
         return
 
     table_no = await get_active_table(user_id)
-    text_lines = ["🛒 <b>Корзина</b>", ""]
-    for n, line in enumerate(lines, 1):
-        title = esc(pricing.line_title(line))
-        if not line.item.is_available:
-            text_lines.append(f"{n}. ⛔ <s>{title}</s> — закончилось, не войдёт в заказ")
-            continue
-        if line.qty == 1:
-            text_lines.append(f"{n}. {title} — {money(line.total)}")
-        else:
-            text_lines.append(f"{n}. {title}\n    {money(line.unit_price)} × {line.qty} = {money(line.total)}")
-
-    items_total = pricing.subtotal(lines)
-    text_lines += ["", *totals_block(items_total, table_no)]
-    if notice:
-        text_lines = [notice, "", *text_lines]
-
-    await screen.show(bot, chat_id, "\n".join(text_lines), kb.cart(lines, items_total), message=callback.message)
+    await screen.show(bot, chat_id, cart_text(lines, table_no, notice), kb.cart(lines, pricing.subtotal(lines)),
+                      picture=picture, message=callback.message)
 
 
 @router.callback_query(Nav.filter(F.to == "cart"))
@@ -97,8 +114,8 @@ async def on_delete_line(callback: CallbackQuery, callback_data: CartCb, bot: Bo
 
 @router.callback_query(CartCb.filter(F.a == "clear"))
 async def on_clear(callback: CallbackQuery, bot: Bot) -> None:
-    await screen.show(bot, callback.message.chat.id, "🧹 Очистить корзину?", kb.confirm_clear(),
-                      message=callback.message)
+    await screen.show(bot, callback.message.chat.id, "<b>Очистить корзину?</b>\nВсе позиции будут удалены.",
+                      kb.confirm_clear(), picture=screen.banner("cart"), message=callback.message)
     await callback.answer()
 
 

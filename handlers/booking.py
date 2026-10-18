@@ -16,6 +16,7 @@ from database import users
 from database.models import Booking, BookingStatus
 from keyboards import booking as kb
 from keyboards.callbacks import BookAdminCb, BookCb, Nav
+from keyboards.common import progress_bar
 from orders import booking as bk
 from orders import scheduler
 from orders.booking import BookingDraft
@@ -57,38 +58,40 @@ def booking_recipients() -> list[int]:
 async def render(bot: Bot, chat_id: int, user_id: int, state: FSMContext, draft: BookingDraft, *,
                  message: Message | None = None, notice: str | None = None, full_name: str | None = None) -> None:
     now = now_local()
-    head = "📅 <b>Бронь столика</b>"
     step = draft.step
+    position = bk.STEPS.index(step) + 1 if step in bk.STEPS else 1
+    head = f"<b>Бронь столика</b>\n{progress_bar(position, len(bk.STEPS))}  шаг {position} из {len(bk.STEPS)}"
 
     if step == "date":
         days = bk.available_days(now)
         upcoming = await bookings_db.get_user_bookings(user_id, after=now)
         upcoming = [b for b in upcoming if b.status in (BookingStatus.PENDING, BookingStatus.CONFIRMED)]
-        body = "Выберите дату 👇" if days else \
+        body = "📅 <b>Выберите день</b> 👇" if days else \
             f"😔 В ближайшие дни свободного времени нет. Позвоните нам: {esc(config.VENUE_PHONE)}"
         if upcoming:
-            body = "Ваши брони:\n" + "\n".join(bk.client_line(b) for b in upcoming) + "\n\n" + body
+            body = ("Ваши брони:\n<blockquote>" + "\n".join(bk.client_line(b) for b in upcoming)
+                    + "</blockquote>\n" + body)
         keyboard = kb.dates(days, now.date())
     elif step == "time":
         slots = bk.day_slots(draft.date, now)
-        body = f"🗓 {human_date(draft.date, now.date()).capitalize()}\n\nВо сколько вас ждать?"
+        body = f"🗓 {human_date(draft.date, now.date()).capitalize()} — <b>во сколько вас ждать?</b>"
         if not slots:
             body += "\n\n😔 На этот день времени не осталось — выберите другую дату."
         keyboard = kb.times(slots)
     elif step == "guests":
-        body = (f"👥 Сколько будет гостей?\n\n"
-                f"Если больше {config.BOOKING_MAX_GUESTS} — позвоните нам: {esc(config.VENUE_PHONE)}")
+        body = (f"👥 <b>Сколько будет гостей?</b>\n"
+                f"<i>Больше {config.BOOKING_MAX_GUESTS}? Позвоните: {esc(config.VENUE_PHONE)}</i>")
         keyboard = kb.guests()
     elif step == "name":
-        body = "👤 На чьё имя бронируем? Напишите имя сообщением или выберите кнопку."
+        body = "👤 <b>На чьё имя бронируем?</b>\nНажмите кнопку или напишите имя сообщением"
         keyboard = kb.name(full_name)
     elif step == "phone":
         user = await users.get_user(user_id)
-        body = "📞 Напишите номер телефона — позвоним, если что-то изменится."
+        body = "📞 <b>Ваш телефон</b> — позвоним, если что-то изменится\n<i>Например: +7 999 123-45-67</i>"
         keyboard = kb.phone(user.phone if user else None)
     else:
-        body = "Проверьте заявку:\n\n" + bk.summary(draft) + \
-               "\n\nПосле отправки администратор подтвердит бронь — мы пришлём уведомление."
+        body = ("📋 <b>Проверьте заявку</b>\n<blockquote>" + bk.summary(draft) + "</blockquote>\n"
+                "Администратор подтвердит бронь — мы пришлём уведомление.")
         keyboard = kb.confirm()
 
     text = f"{head}\n\n{body}"
@@ -96,7 +99,7 @@ async def render(bot: Bot, chat_id: int, user_id: int, state: FSMContext, draft:
         text = f"⚠️ {notice}\n\n{text}"
     await state.update_data({DRAFT_KEY: draft.to_dict(), "booking_name": full_name})
     await state.set_state(INPUT_STATES.get(step, BookingForm.buttons))
-    await screen.show(bot, chat_id, text, keyboard, message=message)
+    await screen.show(bot, chat_id, text, keyboard, picture=screen.banner("booking"), message=message)
 
 
 async def load(state: FSMContext) -> tuple[BookingDraft | None, str | None]:
@@ -268,9 +271,10 @@ async def submit(callback: CallbackQuery, state: FSMContext, bot: Bot, draft: Bo
     await send_to_admins(bot, booking)
     logger.info("Новая бронь №%s на %s", booking_id, draft.starts_at)
 
-    text = ("📅 <b>Заявка отправлена!</b>\n\n" + bk.summary(draft) +
-            "\n\nАдминистратор скоро подтвердит бронь — пришлём уведомление 🙌")
-    await screen.show(bot, callback.message.chat.id, text, kb.done(), message=callback.message)
+    text = ("📅 <b>Заявка отправлена!</b>\n<blockquote>" + bk.summary(draft) + "</blockquote>\n"
+            "⏳ Ждём подтверждения администратора — пришлём уведомление 🙌")
+    await screen.show(bot, callback.message.chat.id, text, kb.done(), picture=screen.banner("booking"),
+                      message=callback.message)
     await callback.answer("Заявка отправлена")
 
 

@@ -106,7 +106,7 @@ async def test_back_from_first_step_returns_to_cart(harness, always_open):
     await add_pizza()
     await open_checkout(harness)
     await harness.click(USER, "Назад")
-    assert "🛒 <b>Корзина</b>" in harness.screen_text(USER)
+    assert "<b>Корзина</b>" in harness.screen_text(USER)
 
 
 async def test_zone_min_order(harness, always_open):
@@ -145,7 +145,7 @@ async def test_pickup_specific_time(harness, always_open):
     assert "Через 15 мин" in harness.buttons(USER)
     await harness.click(USER, "К конкретному времени")
     await harness.click(USER, slot_buttons[1], exact=True)
-    assert "Напишите номер телефона" in harness.screen_text(USER)
+    assert "Ваш телефон" in harness.screen_text(USER)
 
 
 async def test_closed_venue_without_slots(harness, monkeypatch):
@@ -175,7 +175,7 @@ async def test_closed_venue_offers_time_after_opening(harness, monkeypatch):
     assert "📅 Завтра" in buttons and "Как можно скорее" not in " ".join(buttons)
     assert buttons[buttons.index("📅 Завтра") + 1] == "11:00"  # открытие + время на доставку
     await harness.click(USER, "11:00", exact=True)
-    assert "Напишите номер телефона" in harness.screen_text(USER)
+    assert "Ваш телефон" in harness.screen_text(USER)
 
 
 async def test_table_order(harness, always_open):

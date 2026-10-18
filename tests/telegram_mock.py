@@ -42,6 +42,7 @@ class FakeSession(BaseSession):
         self._ids = itertools.count(1000)
         self.raise_for: dict[type, Exception] = {}
         self.blocked_chats: set[int] = set()
+        self.files: dict[str, str] = {}  # file_id → путь к загруженному файлу (для превью экранов)
 
     async def close(self) -> None:
         pass
@@ -77,6 +78,8 @@ class FakeSession(BaseSession):
 
     def _photo(self, media) -> list[dict]:
         file_id = media if isinstance(media, str) else f"file-{next(self._ids)}"
+        if hasattr(media, "path"):
+            self.files[file_id] = str(media.path)
         return [{"file_id": file_id, "file_unique_id": file_id, "width": 960, "height": 640}]
 
     # --- core --------------------------------------------------------------

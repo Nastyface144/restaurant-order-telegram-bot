@@ -27,10 +27,11 @@ async def on_orders(callback: CallbackQuery, state: FSMContext, bot: Bot) -> Non
     await state.clear()
     orders = await orders_db.get_user_orders(callback.from_user.id, limit=HISTORY_LIMIT)
     if orders:
-        text = "📦 <b>Мои заказы</b>\n\nПоследние заказы — нажмите, чтобы открыть или повторить 👇"
+        text = "<b>Мои заказы</b>\nНажмите на заказ — покажем статус и можно повторить в одно касание 👇"
     else:
-        text = "📦 <b>Мои заказы</b>\n\nВы ещё ничего не заказывали. Самое время начать 🍕"
-    await screen.show(bot, callback.message.chat.id, text, kb.orders_list(orders), message=callback.message)
+        text = "<b>Мои заказы</b>\nВы ещё ничего не заказывали. Самое время начать 🍕"
+    await screen.show(bot, callback.message.chat.id, text, kb.orders_list(orders), picture=screen.banner("orders"),
+                      message=callback.message)
     await callback.answer()
 
 
@@ -48,6 +49,7 @@ async def on_order(callback: CallbackQuery, callback_data: OrdersCb, bot: Bot) -
     if order is None:
         return
     await screen.show(bot, callback.message.chat.id, client_card(order), kb.order_details(order),
+                      picture=screen.banner("orders"),
                       message=callback.message)
     await callback.answer()
 

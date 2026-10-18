@@ -49,7 +49,7 @@ async def test_menu_only_without_ordering(harness, always_open, monkeypatch):
     monkeypatch.setattr(config, "FEATURES", config.Features(delivery=False, pickup=False, table=False))
     await harness.send(USER, "/start")
     assert "🛒 Корзина" not in harness.buttons(USER)
-    await harness.click(USER, "Меню")
+    await harness.click(USER, "меню")
     await harness.click(USER, "Пицца")
     await harness.click(USER, "Маргарита")
     assert not any("Добавить" in b for b in harness.buttons(USER))
