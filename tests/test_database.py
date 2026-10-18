@@ -80,7 +80,7 @@ async def test_order_lifecycle(database):
     order_id = await orders.create_order(
         user_id=1, status=OrderStatus.NEW, method=OrderMethod.DELIVERY, customer_name="Иван",
         phone="+79990000000", payment_method=PaymentMethod.CASH, items=items,
-        delivery_fee=150, zone_id=1, address="Садовая, 1",
+        delivery_fee=150, address="Садовая, 1",
     )
     order = await orders.get_order(order_id)
     assert order.subtotal == (640 + 90) * 2
@@ -131,7 +131,6 @@ async def test_users(database):
     await users.upsert_user(1, "Иван Петров", "ivan")  # снова написал боту
     assert await users.get_active_user_ids() == [1]
     await users.save_contact_details(1, phone="+7999")
-    await users.save_contact_details(1, address="Садовая, 1", zone_id=2)
+    await users.save_contact_details(1, address="Садовая, 1")
     user = await users.get_user(1)
-    details = (user.full_name, user.phone, user.last_address, user.last_zone_id)
-    assert details == ("Иван Петров", "+7999", "Садовая, 1", 2)
+    assert (user.full_name, user.phone, user.last_address) == ("Иван Петров", "+7999", "Садовая, 1")

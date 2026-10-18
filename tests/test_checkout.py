@@ -39,8 +39,7 @@ async def test_delivery_full_flow(harness, always_open):
     await open_checkout(harness)
     assert "шаг" not in harness.screen_text(USER)
     await harness.click(USER, "Доставка")
-    assert "шаг 2 из 8" in harness.screen_text(USER)
-    await harness.click(USER, "Зона 1")
+    assert "шаг 2 из 7" in harness.screen_text(USER)
     assert "Напишите адрес" in harness.screen_text(USER)
 
     await harness.send(USER, "ул")  # слишком коротко
@@ -56,7 +55,7 @@ async def test_delivery_full_flow(harness, always_open):
     assert "📍 ул. Садовая, 5, кв. 12" in text
     assert f"+7{NB}999{NB}123-45-67" in text
     assert "💬 Домофон 12" in text
-    assert f"<b>Итого: 1{NB}430{NB}₽</b>" in text
+    assert f"<b>Итого: 1{NB}479{NB}₽</b>" in text
     # всё это время в чате одно сообщение бота
     assert len(harness.session.chat_messages(USER)) == 1
 
@@ -64,7 +63,7 @@ async def test_delivery_full_flow(harness, always_open):
     assert "Заказ №1 оформлен" in harness.screen_text(USER)
     order = await orders.get_order(1)
     assert order.status == OrderStatus.NEW
-    assert (order.method, order.zone_id, order.delivery_fee, order.total) == (OrderMethod.DELIVERY, 1, 150, 1430)
+    assert (order.method, order.delivery_fee, order.total) == (OrderMethod.DELIVERY, 199, 1479)
     assert order.payment_method == PaymentMethod.CASH and order.scheduled_at is None
     assert await cart.get_cart(USER) == []
 
@@ -75,16 +74,15 @@ async def test_delivery_full_flow(harness, always_open):
 
     # контакты запомнились
     user = await users.get_user(USER)
-    assert (user.phone, user.last_address, user.last_zone_id) == ("+79991234567", "ул. Садовая, 5, кв. 12", 1)
+    assert (user.phone, user.last_address) == ("+79991234567", "ул. Садовая, 5, кв. 12")
 
 
 async def test_saved_contacts_and_smart_back(harness, always_open):
     await users.upsert_user(USER, "Иван", None)
-    await users.save_contact_details(USER, phone="+79990001122", address="Садовая, 1", zone_id=1)
+    await users.save_contact_details(USER, phone="+79990001122", address="Садовая, 1")
     await add_pizza()
     await open_checkout(harness)
     await harness.click(USER, "Доставка")
-    await harness.click(USER, "Зона 1")
     await harness.click(USER, "📍 Садовая, 1")
     await harness.click(USER, "Как можно скорее")
     await harness.click(USER, "📞")
@@ -109,14 +107,24 @@ async def test_back_from_first_step_returns_to_cart(harness, always_open):
     assert "<b>Корзина</b>" in harness.screen_text(USER)
 
 
-async def test_zone_min_order(harness, always_open):
+async def test_delivery_min_order(harness, always_open):
     await add_pizza(qty=1, size="25")  # 490 < 700
     await open_checkout(harness)
+    assert f"🔒 Доставка · заказ от 700{NB}₽" in harness.buttons(USER)
     await harness.click(USER, "Доставка")
-    assert "🔒 Зона 1" in " ".join(harness.buttons(USER))
-    await harness.click(USER, "Зона 1")
-    assert "Минимальный заказ" in last_alert(harness)
-    assert "Выберите зону" in harness.screen_text(USER)
+    assert "добавьте ещё" in last_alert(harness).lower() and "заберите заказ сами" in last_alert(harness)
+    assert "Как хотите получить заказ" in harness.screen_text(USER)
+
+
+async def test_fixed_delivery_price_and_free_from(harness, always_open):
+    await add_pizza(qty=1)  # 640 < 700
+    await add_pizza(qty=1)  # 1280: доставка 199
+    await open_checkout(harness)
+    assert f"🛵 Доставка · 199{NB}₽ · ≈45 мин" in harness.buttons(USER)
+    await add_pizza(qty=2)  # 2560 ≥ 2000: бесплатно
+    await harness.click(USER, "Назад")
+    await harness.click(USER, "Оформить")
+    assert "🛵 Доставка · бесплатно · ≈45 мин" in harness.buttons(USER)
 
 
 async def test_pickup_quick_time(harness, always_open):
@@ -154,7 +162,6 @@ async def test_closed_venue_without_slots(harness, monkeypatch):
     await add_pizza()
     await open_checkout(harness)
     await harness.click(USER, "Доставка")
-    await harness.click(USER, "Зона 1")
     await harness.send(USER, "ул. Садовая, 5")
     assert "свободного времени нет" in harness.screen_text(USER)
 
@@ -167,7 +174,6 @@ async def test_closed_venue_offers_time_after_opening(harness, monkeypatch):
     await add_pizza()
     await open_checkout(harness)
     await harness.click(USER, "Доставка")
-    await harness.click(USER, "Зона 1")
     await harness.send(USER, "ул. Садовая, 5")
     text = harness.screen_text(USER)
     assert "откроемся завтра в 10:00" in text and "Выберите удобное время" in text
@@ -240,7 +246,6 @@ async def test_leaving_checkout_via_menu_resets_input(harness, always_open):
     await add_pizza()
     await open_checkout(harness)
     await harness.click(USER, "Доставка")
-    await harness.click(USER, "Зона 1")          # бот ждёт адрес
     from keyboards.callbacks import Nav
 
     # кнопка «Меню» со старого сообщения (без /start)

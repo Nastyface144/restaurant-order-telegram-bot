@@ -90,8 +90,8 @@ def _summary(draft: Draft, lines: list[CartLine]) -> tuple[str, int]:
     """Текст экрана подтверждения и итоговая сумма."""
     available = pricing.available_lines(lines)
     items_total = pricing.subtotal(available)
-    zone = draft.zone if draft.method == OrderMethod.DELIVERY else None
-    fee = pricing.delivery_fee(zone, items_total) if zone else 0
+    delivery = draft.method == OrderMethod.DELIVERY
+    fee = pricing.delivery_fee(items_total) if delivery else 0
     total = items_total + fee
 
     rows = ["📋 <b>Проверьте заказ</b>"]
@@ -101,10 +101,10 @@ def _summary(draft: Draft, lines: list[CartLine]) -> tuple[str, int]:
         receipt.append(f"{esc(pricing.line_title(line))}{qty} — {money(line.total)}")
     rows.append("<blockquote>" + "\n".join(receipt) + "</blockquote>")
 
-    rows.append(co.METHOD_TITLES[OrderMethod(draft.method)] + (f" · {esc(zone.title)}" if zone else ""))
+    rows.append(co.METHOD_TITLES[OrderMethod(draft.method)])
     if draft.method == OrderMethod.TABLE:
         rows.append(f"🍽 Стол №{draft.table_no}")
-    if zone:
+    if delivery:
         rows.append(f"📍 {esc(draft.address)}")
     if draft.method != OrderMethod.TABLE:
         rows.append(f"🕐 {co.time_label(draft)}")
@@ -115,8 +115,8 @@ def _summary(draft: Draft, lines: list[CartLine]) -> tuple[str, int]:
         rows.append(f"💬 {esc(draft.comment)}")
     rows.append(co.PAYMENT_TITLES[PaymentMethod(draft.payment)])
     rows.append("")
-    if zone:
-        rows.append(f"Товары: {money(items_total)} · доставка: {'бесплатно' if fee == 0 else money(fee)}")
+    if delivery:
+        rows.append(f"Товары: {money(items_total)} · доставка: {pricing.delivery_price_text(fee)}")
     rows.append(f"<b>Итого: {money(total)}</b>")
     return "\n".join(rows), total
 
@@ -140,22 +140,7 @@ async def render(
 
     if step == "method":
         body = "Как хотите получить заказ? 👇"
-        keyboard = kb.methods(co.available_methods())
-
-    elif step == "zone":
-        zone_lines = []
-        for zone in config.DELIVERY_ZONES:
-            fee = pricing.delivery_fee(zone, items_total)
-            fee_text = "бесплатно" if fee == 0 else money(fee)
-            conditions = f"Доставка {fee_text} · заказ от {money(zone.min_order)}"
-            if zone.free_from and fee:
-                conditions += f" · бесплатно от {money(zone.free_from)}"
-            zone_lines.append(
-                f"<blockquote><b>{esc(zone.title)}</b> · ≈{zone.eta_minutes} мин\n{esc(zone.description)}\n"
-                f"{conditions}</blockquote>"
-            )
-        body = "🛵 <b>Куда везём?</b> Выберите зону доставки:\n" + "".join(zone_lines)
-        keyboard = kb.zones(items_total)
+        keyboard = kb.methods(co.available_methods(), items_total)
 
     elif step == "address":
         user = await users.get_user(user_id)
@@ -171,9 +156,8 @@ async def render(
             asap = co.asap_available(now)
             has_choice = asap
             if not show_slots and has_choice:
-                zone = draft.zone
                 body = "🕐 <b>Когда доставить?</b>"
-                keyboard = kb.time_delivery(asap, zone.eta_minutes if zone else None)
+                keyboard = kb.time_delivery(asap, config.DELIVERY_ETA_MINUTES)
         else:
             quick = co.quick_pickup_options(now)
             has_choice = bool(quick)
@@ -304,31 +288,16 @@ async def on_method(callback: CallbackQuery, callback_data: CheckoutCb, state: F
     if method not in co.available_methods():
         await callback.answer("Этот способ сейчас недоступен", show_alert=True)
         return
+    if method == OrderMethod.DELIVERY:
+        shortfall = pricing.min_order_shortfall(pricing.subtotal(await cart.get_cart(callback.from_user.id)))
+        if shortfall:
+            text = f"Доставка — от {money(config.DELIVERY_MIN_ORDER)}.\nДобавьте ещё на {money(shortfall)}"
+            if OrderMethod.PICKUP in co.available_methods():
+                text += " или заберите заказ сами 🙌"
+            await callback.answer(text, show_alert=True)
+            return
     co.set_method(draft, method)
     await complete_step("method", draft, bot, state, user_id=callback.from_user.id,
-                        chat_id=callback.message.chat.id, message=callback.message)
-    await callback.answer()
-
-
-@router.callback_query(CheckoutCb.filter(F.a == "zone"))
-async def on_zone(callback: CallbackQuery, callback_data: CheckoutCb, state: FSMContext, bot: Bot) -> None:
-    draft = await draft_or_restart(callback, state, bot)
-    if draft is None:
-        return
-    zone = config.get_zone(int(callback_data.v)) if callback_data.v.isdigit() else None
-    if zone is None:
-        await callback.answer("Зона не найдена", show_alert=True)
-        return
-    items_total = pricing.subtotal(await cart.get_cart(callback.from_user.id))
-    shortfall = pricing.min_order_shortfall(zone, items_total)
-    if shortfall:
-        await callback.answer(
-            f"Минимальный заказ в эту зону — {money(zone.min_order)}.\nДобавьте ещё на {money(shortfall)} 🙏",
-            show_alert=True,
-        )
-        return
-    draft.zone_id = zone.id
-    await complete_step("zone", draft, bot, state, user_id=callback.from_user.id,
                         chat_id=callback.message.chat.id, message=callback.message)
     await callback.answer()
 
@@ -534,7 +503,7 @@ async def submit(callback: CallbackQuery, state: FSMContext, bot: Bot, draft: Dr
         return
 
     if draft.method == OrderMethod.DELIVERY:
-        shortfall = pricing.min_order_shortfall(draft.zone, pricing.subtotal(lines))
+        shortfall = pricing.min_order_shortfall(pricing.subtotal(lines))
         if shortfall:
             await state.clear()
             await show_cart(bot, callback, notice=f"⚠️ До минимальной суммы заказа не хватает {money(shortfall)}.")

@@ -27,19 +27,16 @@ async def get_user(user_id: int) -> User | None:
     return User.from_row(row) if row else None
 
 
-async def save_contact_details(
-    user_id: int, phone: str | None = None, address: str | None = None, zone_id: int | None = None
-) -> None:
+async def save_contact_details(user_id: int, phone: str | None = None, address: str | None = None) -> None:
     """Запоминаем телефон и адрес, чтобы в следующий раз предложить их одной кнопкой."""
     await db.execute(
         """
         UPDATE users SET
             phone = COALESCE(?, phone),
-            last_address = COALESCE(?, last_address),
-            last_zone_id = COALESCE(?, last_zone_id)
+            last_address = COALESCE(?, last_address)
         WHERE id = ?
         """,
-        (phone, address, zone_id, user_id),
+        (phone, address, user_id),
     )
 
 

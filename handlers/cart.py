@@ -21,26 +21,21 @@ router.callback_query.filter(F.message.chat.type == "private")
 
 def delivery_hints(items_total: int) -> list[str]:
     """Коротко о доставке и подсказка, сколько добавить до бесплатной."""
-    if not config.FEATURES.delivery or not config.DELIVERY_ZONES:
+    if not config.FEATURES.delivery:
         return []
-    zones = config.DELIVERY_ZONES
-    min_order = min(z.min_order for z in zones)
-    if items_total < min_order:
-        hint = f"🛵 Доставка — от {money(min_order)}: добавьте ещё {money(min_order - items_total)}"
+    shortfall = pricing.min_order_shortfall(items_total)
+    if shortfall:
+        hint = f"🛵 Доставка — от {money(config.DELIVERY_MIN_ORDER)}: добавьте ещё {money(shortfall)}"
         if config.FEATURES.pickup:
             hint += "\n🏃 Самовывоз — без минимальной суммы"
         return [hint]
-
-    free_zones = [z for z in zones if z.free_from]
-    reached = [z for z in free_zones if items_total >= z.free_from]
-    if reached:
-        names = ", ".join(z.title.split(" — ")[0].lower() for z in reached)
-        return [f"🎁 Доставка бесплатно ({names})"]
-    price = min(z.price for z in zones)
-    lines = [f"🛵 Доставка от {money(price)}"]
-    if free_zones:
-        nearest = min(free_zones, key=lambda z: z.free_from)
-        lines.append(f"💡 Ещё {money(nearest.free_from - items_total)} — и доставим бесплатно")
+    fee = pricing.delivery_fee(items_total)
+    if fee == 0:
+        return ["🎁 Доставка бесплатно"]
+    lines = [f"🛵 Доставка {money(fee)}"]
+    left = pricing.free_delivery_left(items_total)
+    if left:
+        lines.append(f"💡 Ещё {money(left)} — и доставим бесплатно")
     return lines
 
 

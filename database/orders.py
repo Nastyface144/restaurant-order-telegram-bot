@@ -36,7 +36,6 @@ async def create_order(
     payment_method: PaymentMethod,
     items: list[OrderItem],
     delivery_fee: int = 0,
-    zone_id: int | None = None,
     address: str | None = None,
     table_no: int | None = None,
     comment: str | None = None,
@@ -51,13 +50,13 @@ async def create_order(
     async with db.transaction() as conn:
         cursor = await conn.execute(
             """
-            INSERT INTO orders (user_id, status, method, zone_id, address, table_no, customer_name, phone,
+            INSERT INTO orders (user_id, status, method, address, table_no, customer_name, phone,
                                 comment, scheduled_at, payment_method, subtotal, delivery_fee, total,
                                 created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                user_id, str(status), str(method), zone_id, address, table_no, customer_name, phone,
+                user_id, str(status), str(method), address, table_no, customer_name, phone,
                 comment, to_db(scheduled_at) if scheduled_at else None, str(payment_method),
                 subtotal, delivery_fee, subtotal + delivery_fee, now, now,
             ),

@@ -22,8 +22,8 @@ async def place_order(bot: Bot, *, user_id: int, customer_name: str, draft: Draf
     method = OrderMethod(draft.method)
     items = pricing.to_order_items(lines)
     items_total = sum(i.total for i in items)
-    zone = draft.zone if method == OrderMethod.DELIVERY else None
-    fee = pricing.delivery_fee(zone, items_total) if zone else 0
+    delivery = method == OrderMethod.DELIVERY
+    fee = pricing.delivery_fee(items_total) if delivery else 0
     online = draft.payment == PaymentMethod.ONLINE
 
     order_id = await orders_db.create_order(
@@ -35,16 +35,13 @@ async def place_order(bot: Bot, *, user_id: int, customer_name: str, draft: Draf
         payment_method=PaymentMethod(draft.payment),
         items=items,
         delivery_fee=fee,
-        zone_id=zone.id if zone else None,
-        address=draft.address if zone else None,
+        address=draft.address if delivery else None,
         table_no=draft.table_no if method == OrderMethod.TABLE else None,
         comment=draft.comment,
         scheduled_at=parse_time(draft.time) if method != OrderMethod.TABLE else None,
         clear_cart=not online,
     )
-    await users.save_contact_details(
-        user_id, phone=draft.phone, address=draft.address if zone else None, zone_id=zone.id if zone else None
-    )
+    await users.save_contact_details(user_id, phone=draft.phone, address=draft.address if delivery else None)
     order = await orders_db.get_order(order_id)
     logger.info("Заказ №%s создан: %s, %s, %s ₽", order.id, method, order.payment_method, order.total)
     if not online:

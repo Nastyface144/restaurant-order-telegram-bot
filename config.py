@@ -111,37 +111,10 @@ ENABLE_CARD_ON_RECEIPT = True
 # Доставка
 # ---------------------------------------------------------------------------
 
-@dataclass(frozen=True)
-class DeliveryZone:
-    id: int
-    title: str
-    description: str
-    price: int            # стоимость доставки, ₽
-    min_order: int        # минимальная сумма заказа, ₽
-    free_from: int = 0    # бесплатная доставка от этой суммы (0 — никогда)
-    eta_minutes: int = 60  # ориентировочное время доставки
-
-
-DELIVERY_ZONES: tuple[DeliveryZone, ...] = (
-    DeliveryZone(
-        id=1,
-        title="Зона 1 — до 3 км",
-        description="Центр, Садовая, Пушкинский район",
-        price=150,
-        min_order=700,
-        free_from=2000,
-        eta_minutes=45,
-    ),
-    DeliveryZone(
-        id=2,
-        title="Зона 2 — 3–7 км",
-        description="Северный и Заречный районы",
-        price=290,
-        min_order=1200,
-        free_from=3000,
-        eta_minutes=70,
-    ),
-)
+DELIVERY_PRICE = 199         # стоимость доставки, ₽ (0 — всегда бесплатно)
+DELIVERY_MIN_ORDER = 700     # минимальная сумма заказа на доставку, ₽ (0 — без минимума)
+DELIVERY_FREE_FROM = 2000    # бесплатная доставка от этой суммы, ₽ (0 — никогда)
+DELIVERY_ETA_MINUTES = 45    # сколько обычно едет заказ «как можно скорее»
 
 # Сколько минут минимум нужно на заказ «ко времени» от текущего момента.
 DELIVERY_LEAD_MINUTES = 60
@@ -216,13 +189,6 @@ class Features:
 FEATURES = Features()
 
 
-def get_zone(zone_id: int | None) -> DeliveryZone | None:
-    for zone in DELIVERY_ZONES:
-        if zone.id == zone_id:
-            return zone
-    return None
-
-
 def validate() -> list[str]:
     """Проверяет настройки при запуске. Возвращает список предупреждений,
     а на критичных ошибках бросает ConfigError."""
@@ -236,8 +202,8 @@ def validate() -> list[str]:
         warnings.append("ADMIN_ID не задан — /admin и подтверждение броней недоступны.")
     if ENABLE_ONLINE_PAYMENT and not PAYMENT_TOKEN:
         warnings.append("PAYMENT_TOKEN не задан — онлайн-оплата отключена.")
-    if ENABLE_DELIVERY and not DELIVERY_ZONES:
-        raise ConfigError("Доставка включена, но не задано ни одной зоны в DELIVERY_ZONES.")
+    if min(DELIVERY_PRICE, DELIVERY_MIN_ORDER, DELIVERY_FREE_FROM, DELIVERY_ETA_MINUTES) < 0:
+        raise ConfigError("Настройки доставки (DELIVERY_*) не могут быть отрицательными.")
     if FEATURES.ordering and not (FEATURES.online_payment or FEATURES.cash_payment or FEATURES.card_on_receipt):
         raise ConfigError("Не включён ни один способ оплаты.")
     if not any(WORKING_HOURS.values()):

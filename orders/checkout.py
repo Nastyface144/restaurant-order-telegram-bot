@@ -26,7 +26,6 @@ class Draft:
     """Черновик заказа — хранится в FSM пока клиент проходит шаги."""
 
     method: str | None = None
-    zone_id: int | None = None
     address: str | None = None
     time: str | None = None      # "asap" | "in_15" | "at_202610121930"
     phone: str | None = None
@@ -43,10 +42,6 @@ class Draft:
     def from_dict(cls, data: dict | None) -> Draft:
         names = {f.name for f in fields(cls)}
         return cls(**{k: v for k, v in (data or {}).items() if k in names})
-
-    @property
-    def zone(self) -> config.DeliveryZone | None:
-        return config.get_zone(self.zone_id)
 
 
 def available_methods() -> list[OrderMethod]:
@@ -76,8 +71,6 @@ def steps(draft: Draft) -> list[str]:
         return ["comment", "confirm"]
     result = ["method"] if len(available_methods()) > 1 else []
     if draft.method == OrderMethod.DELIVERY:
-        if len(config.DELIVERY_ZONES) > 1:
-            result.append("zone")
         result += ["address", "time", "phone"]
     elif draft.method == OrderMethod.PICKUP:
         result += ["time", "phone"]
@@ -107,8 +100,6 @@ def start(table_no: int | None) -> Draft:
 def set_method(draft: Draft, method: OrderMethod) -> None:
     draft.method = method
     draft.time = None  # варианты времени у доставки и самовывоза разные
-    if method == OrderMethod.DELIVERY and len(config.DELIVERY_ZONES) == 1:
-        draft.zone_id = config.DELIVERY_ZONES[0].id
     _autofill_payment(draft)
 
 
@@ -123,7 +114,6 @@ def _autofill_payment(draft: Draft) -> None:
 def is_filled(draft: Draft, step: str) -> bool:
     return {
         "method": draft.method is not None,
-        "zone": draft.zone is not None,
         "address": bool(draft.address),
         "time": bool(draft.time),
         "phone": bool(draft.phone),
@@ -199,8 +189,7 @@ def time_label(draft: Draft, now: datetime | None = None) -> str:
     if not draft.time:
         return "—"
     if draft.time == TIME_ASAP:
-        zone = draft.zone
-        eta = f" (≈{zone.eta_minutes} мин)" if zone else ""
+        eta = f" (≈{config.DELIVERY_ETA_MINUTES} мин)" if draft.method == OrderMethod.DELIVERY else ""
         return f"Как можно скорее{eta}"
     if draft.time.startswith("in_"):
         minutes = int(draft.time[3:])
@@ -243,7 +232,7 @@ def clean_comment(raw: str | None) -> str | None:
 
 
 METHOD_TITLES = {
-    OrderMethod.DELIVERY: "🚚 Доставка",
+    OrderMethod.DELIVERY: "🛵 Доставка",
     OrderMethod.PICKUP: "🏃 Самовывоз",
     OrderMethod.TABLE: "🍽 За столиком",
 }

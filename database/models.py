@@ -164,7 +164,6 @@ class User:
     username: str | None
     phone: str | None
     last_address: str | None
-    last_zone_id: int | None
     table_no: int | None
     table_set_at: datetime | None
     is_blocked: bool
@@ -178,7 +177,6 @@ class User:
             username=row["username"],
             phone=row["phone"],
             last_address=row["last_address"],
-            last_zone_id=row["last_zone_id"],
             table_no=row["table_no"],
             table_set_at=from_db(row["table_set_at"]),
             is_blocked=bool(row["is_blocked"]),
@@ -231,7 +229,6 @@ class Order:
     user_id: int
     status: OrderStatus
     method: OrderMethod
-    zone_id: int | None
     address: str | None
     table_no: int | None
     customer_name: str
@@ -257,7 +254,6 @@ class Order:
             user_id=row["user_id"],
             status=OrderStatus(row["status"]),
             method=OrderMethod(row["method"]),
-            zone_id=row["zone_id"],
             address=row["address"],
             table_no=row["table_no"],
             customer_name=row["customer_name"],

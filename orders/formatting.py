@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import config
 from database.models import Order, OrderMethod, OrderStatus, PaymentMethod
 from utils.format import esc, format_phone, money
 from utils.timeutil import human_datetime, now_local
@@ -39,9 +38,8 @@ def payment_text(order: Order) -> str:
 def totals_block(order: Order) -> list[str]:
     lines = [f"Товары: {money(order.subtotal)}"]
     if order.method == OrderMethod.DELIVERY:
-        zone = config.get_zone(order.zone_id)
         fee = "бесплатно" if order.delivery_fee == 0 else money(order.delivery_fee)
-        lines.append(f"Доставка: {fee}" + (f" ({esc(zone.title)})" if zone else ""))
+        lines.append(f"Доставка: {fee}")
     lines.append(f"<b>Итого: {money(order.total)}</b>")
     return lines
 

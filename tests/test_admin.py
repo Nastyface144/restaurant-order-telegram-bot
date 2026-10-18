@@ -25,10 +25,10 @@ async def test_admin_only_for_admins(harness, always_open):
 
 
 async def test_dashboard_with_stats(harness, always_open):
-    await place_order(harness)              # 1430 ₽, выполним
+    await place_order(harness)              # 1479 ₽, выполним
     for button in ["Принять", "Готовится", "Курьер выехал", "Доставлен"]:
         await harness.click(STAFF, button, user_id=1)
-    await place_order(harness)              # 1430 ₽, в работе
+    await place_order(harness)              # 1479 ₽, в работе
     await place_order(harness)              # отклоним
     await harness.click(STAFF, "Отклонить", user_id=1)
     await harness.click(STAFF, config.REJECT_REASONS[0], user_id=1)
@@ -37,8 +37,8 @@ async def test_dashboard_with_stats(harness, always_open):
     text = harness.screen_text(ADMIN)
     assert "Заказов: <b>3</b>" in text
     assert "в работе 1 · выполнено 1 · отклонено 1" in text
-    assert "Выручка: <b>1 430 ₽</b>" in text
-    assert "ещё в работе на 1 430 ₽" in text
+    assert "Выручка: <b>1 479 ₽</b>" in text
+    assert "ещё в работе на 1 479 ₽" in text
 
     await harness.click(ADMIN, "Заказы сегодня")
     text = harness.screen_text(ADMIN)

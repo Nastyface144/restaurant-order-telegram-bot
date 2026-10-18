@@ -27,30 +27,19 @@ def _back_row() -> list[InlineKeyboardButton]:
     return [_btn(BACK, "back")]
 
 
-def _method_label(method: OrderMethod) -> str:
-    if method == OrderMethod.DELIVERY and config.DELIVERY_ZONES:
-        eta = min(z.eta_minutes for z in config.DELIVERY_ZONES)
-        return f"{METHOD_TITLES[method]} · от {eta} мин"
+def _method_label(method: OrderMethod, items_total: int) -> str:
+    if method == OrderMethod.DELIVERY:
+        if pricing.min_order_shortfall(items_total):
+            return f"🔒 Доставка · заказ от {money(config.DELIVERY_MIN_ORDER)}"
+        fee = pricing.delivery_fee(items_total)
+        return f"{METHOD_TITLES[method]} · {pricing.delivery_price_text(fee)} · ≈{config.DELIVERY_ETA_MINUTES} мин"
     if method == OrderMethod.PICKUP:
         return f"{METHOD_TITLES[method]} · от {config.PICKUP_LEAD_MINUTES} мин"
     return METHOD_TITLES[method]
 
 
-def methods(options: list[OrderMethod]) -> InlineKeyboardMarkup:
-    rows = [[_btn(_method_label(m), "method", m)] for m in options]
-    rows.append(_back_row())
-    return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
-def zones(items_total: int) -> InlineKeyboardMarkup:
-    rows = []
-    for zone in config.DELIVERY_ZONES:
-        if pricing.min_order_shortfall(zone, items_total):
-            label = f"🔒 {zone.title} · от {money(zone.min_order)}"
-        else:
-            fee = pricing.delivery_fee(zone, items_total)
-            label = f"{zone.title} · {'бесплатно' if fee == 0 else money(fee)}"
-        rows.append([_btn(label, "zone", str(zone.id))])
+def methods(options: list[OrderMethod], items_total: int) -> InlineKeyboardMarkup:
+    rows = [[_btn(_method_label(m, items_total), "method", m)] for m in options]
     rows.append(_back_row())
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

@@ -13,7 +13,7 @@ from database import orders as orders_db
 from database.models import Order
 from keyboards import client as kb
 from keyboards.callbacks import Nav
-from orders import hours
+from orders import hours, pricing
 from orders.statuses import ACTIVE_STATUSES
 from orders.table import get_active_table, parse_table_payload
 from utils import screen
@@ -38,12 +38,16 @@ def venue_status_text() -> str:
     return f"🔴 Сейчас закрыто, {when}"
 
 
+def delivery_terms() -> str:
+    """«🛵 Доставка ≈45 мин · 199 ₽, бесплатно от 2 000 ₽»."""
+    text = f"🛵 Доставка ≈{config.DELIVERY_ETA_MINUTES} мин · {pricing.delivery_price_text(config.DELIVERY_PRICE)}"
+    if config.DELIVERY_PRICE and config.DELIVERY_FREE_FROM:
+        text += f", бесплатно от {money(config.DELIVERY_FREE_FROM)}"
+    return text
+
+
 def _delivery_hint() -> str | None:
-    if not config.FEATURES.delivery or not config.DELIVERY_ZONES:
-        return None
-    eta = min(z.eta_minutes for z in config.DELIVERY_ZONES)
-    price = min(z.price for z in config.DELIVERY_ZONES)
-    return f"🛵 Доставка от {eta} мин · от {money(price)}"
+    return delivery_terms() if config.FEATURES.delivery else None
 
 
 def main_menu_text(table_no: int | None, accepting: bool, active_order: Order | None,
@@ -136,11 +140,10 @@ async def on_contacts(callback: CallbackQuery, state: FSMContext, bot: Bot) -> N
         f"<blockquote>{hours.format_hours()}</blockquote>",
     ]
     if config.FEATURES.delivery:
-        zones = "\n".join(
-            f"{esc(z.title)}\n{money(z.price)} · заказ от {money(z.min_order)} · ≈{z.eta_minutes} мин"
-            for z in config.DELIVERY_ZONES
-        )
-        lines += ["🛵 <b>Доставка</b>", f"<blockquote>{zones}</blockquote>"]
+        terms = delivery_terms()
+        if config.DELIVERY_MIN_ORDER:
+            terms += f"\nМинимальный заказ — {money(config.DELIVERY_MIN_ORDER)}"
+        lines += [f"<blockquote>{terms}</blockquote>"]
     await screen.show(bot, callback.message.chat.id, "\n".join(lines), kb.contacts(),
                       picture=screen.banner("contacts"), message=callback.message)
     await callback.answer()

@@ -282,7 +282,6 @@ async def _walk(h, staff: int, user: int) -> list[tuple[str, dict]]:
     snap("05_cart")
     await h.click(user, "Оформить")
     await h.click(user, "Доставка")
-    await h.click(user, "Зона 1")
     await h.send(user, "ул. Садовая, 5, кв. 12")
     snap("06_time")
     await h.click(user, "Как можно скорее")

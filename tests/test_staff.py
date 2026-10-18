@@ -24,7 +24,6 @@ async def place_order(h, method="delivery"):
         await open_checkout(h)
         if method == "delivery":
             await h.click(USER, "Доставка")
-            await h.click(USER, "Зона 1")
             await h.send(USER, "ул. Садовая, 5")
             await h.click(USER, "Как можно скорее")
         else:

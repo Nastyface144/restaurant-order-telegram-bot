@@ -30,7 +30,7 @@ async def test_cart_totals_with_delivery(harness, always_open):
     assert f"<b>Пепперони</b> · 30 см + Бекон\n2 × 830{NB}₽ = <b>1{NB}660{NB}₽</b>" in text
     assert f"<b>Морс клюквенный</b> · 0,5 л\n190{NB}₽" in text
     assert f"Итого: <b>1{NB}850{NB}₽</b>" in text
-    assert f"🛵 Доставка от 150{NB}₽" in text
+    assert f"🛵 Доставка 199{NB}₽" in text
     assert f"💡 Ещё 150{NB}₽ — и доставим бесплатно" in text
     assert f"✅ Оформить заказ · 1{NB}850{NB}₽" in harness.buttons(USER)
 
@@ -46,7 +46,7 @@ async def test_min_order_and_free_delivery(harness, always_open):
     await cart.add_to_cart(USER, fries.id, "", [], 7)  # 2090 → в зоне 1 доставка бесплатна
     await harness.click(USER, "Добавить ещё")
     await harness.click(USER, "🛒")
-    assert "🎁 Доставка бесплатно (зона 1)" in harness.screen_text(USER)
+    assert "🎁 Доставка бесплатно" in harness.screen_text(USER)
 
 
 async def test_below_min_order_suggests_pickup(harness, always_open):

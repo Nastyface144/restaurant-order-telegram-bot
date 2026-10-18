@@ -34,7 +34,7 @@ class CartCb(CallbackData, prefix="cart"):
 
 
 class CheckoutCb(CallbackData, prefix="co"):
-    a: str        # back | method | zone | addr | time | slots | phone | nocomment | pay | confirm
+    a: str        # back | method | addr | time | slots | phone | nocomment | pay | confirm
     v: str = ""
 
 

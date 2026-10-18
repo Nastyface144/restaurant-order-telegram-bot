@@ -20,7 +20,6 @@ CREATE TABLE IF NOT EXISTS users (
     username      TEXT,
     phone         TEXT,
     last_address  TEXT,
-    last_zone_id  INTEGER,
     table_no      INTEGER,                       -- стол, если гость пришёл по QR-коду
     table_set_at  TEXT,
     is_blocked    INTEGER NOT NULL DEFAULT 0,    -- пользователь заблокировал бота
@@ -64,7 +63,6 @@ CREATE TABLE IF NOT EXISTS orders (
     user_id           INTEGER NOT NULL,
     status            TEXT    NOT NULL,
     method            TEXT    NOT NULL,
-    zone_id           INTEGER,
     address           TEXT,
     table_no          INTEGER,
     customer_name     TEXT    NOT NULL DEFAULT '',

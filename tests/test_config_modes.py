@@ -10,14 +10,14 @@ async def test_delivery_only_skips_method_step(harness, always_open, monkeypatch
     monkeypatch.setattr(config, "FEATURES", config.Features(pickup=False, table=False, booking=False))
     await add_pizza()
     await open_checkout(harness)
-    assert "Выберите зону доставки" in harness.screen_text(USER)
-    assert "шаг 1 из 7" in harness.screen_text(USER)
+    assert "Напишите адрес доставки" in harness.screen_text(USER)
+    assert "шаг 1 из 6" in harness.screen_text(USER)
     await harness.click(USER, "Назад")
     assert "Корзина" in harness.screen_text(USER)
 
 
-async def test_single_zone_skips_zone_step(harness, always_open, monkeypatch):
-    monkeypatch.setattr(config, "DELIVERY_ZONES", config.DELIVERY_ZONES[:1])
+async def test_free_delivery_everywhere(harness, always_open, monkeypatch):
+    monkeypatch.setattr(config, "DELIVERY_PRICE", 0)
     await add_pizza()
     await open_checkout(harness)
     await harness.click(USER, "Доставка")
@@ -28,7 +28,7 @@ async def test_single_zone_skips_zone_step(harness, always_open, monkeypatch):
     await harness.click(USER, "Без комментария")
     await harness.click(USER, "Наличными")
     await harness.click(USER, "Подтвердить")
-    assert (await orders.get_order(1)).zone_id == config.DELIVERY_ZONES[0].id
+    assert (await orders.get_order(1)).delivery_fee == 0
 
 
 async def test_coffee_shop_pickup_only(harness, always_open, monkeypatch):
